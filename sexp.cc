@@ -49,7 +49,14 @@ bool is_function(LispType type) {
 
 // Later, this will return the object named by the atom. Should we return a copy
 // or a reference to it??
-SExp *Atom::eval(Env &env) { return env.lookup(id); }
+SExp *Atom::eval(Env &env) { 
+    auto value = env.lookup(id); 
+    if (value != nullptr) {
+      return value;
+    } else {
+      throw evaluation_error("Encountered undefined atom " + id);
+    }
+  }
 
 SExp *List::eval(Env &env) {
   if (elems.empty()) {

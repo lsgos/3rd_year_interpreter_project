@@ -7,6 +7,28 @@
 #include <list>
 #include <string>
 #include <unordered_map>
+class Env;
+
+
+
+class Heap {
+    private:
+    std::unordered_map<SExp*, bool> objects;
+    void reset_marks();
+    void mark(SExp*);
+    void sweep();
+    public:
+    SExp*  allocate(SExp* new_object);
+    void collect_garbage(Env& env);
+    Heap() {}
+    Heap(Heap&& other) = default;
+    // Move assignment operator.  
+    Heap& operator=(Heap&&) = default;
+    Heap(const Heap&) = delete;
+    Heap& operator = (const Heap&) = delete;
+    ~Heap();
+};
+
 class Env {
 private:
   // this will be used to store the values in a namespace
@@ -43,6 +65,9 @@ public:
    Env& operator=(Env&&) = default;
    Env(const Env&) = delete;
    Env& operator = (const Env&) = delete;
+   void collect_garbage() {heap.collect_garbage(*this);}
+   friend class Heap;
 };
+
 
 #endif

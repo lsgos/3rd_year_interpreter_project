@@ -29,6 +29,7 @@ int main() {
         sexp = sexp->eval(env);
         sexp->exec(repr);
         std::cout << "\n";
+        env.collect_garbage();
       } catch (std::exception &e) {
         std::cout << "Exception: " << e.what() << std::endl;
         break;

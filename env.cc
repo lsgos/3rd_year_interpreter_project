@@ -71,11 +71,9 @@ SExp *Env::lookup(std::string id) {
   } else {
     return x->second;
   }
-} // void Env::def(std::string id, std::function<SExp *(std::list<sexp_ptr>)>
-// func) {
-//  scope[id] = func;
-//}
-//
+} 
+
+
 void Env::bind_primitives() {
   scope["+"] = mk_numeric_primitive(
       [](double acc, double x) -> double { return acc + x; }, "+");
@@ -89,22 +87,12 @@ void Env::bind_primitives() {
   scope["car"] = mk_car();
   scope["quote"] = mk_quote();
   scope["define"] = mk_define();
+  std::cout << "address of proc define: " << scope["define"] << std::endl;
   return;
 }
 
 Env::~Env() {
-  heap = Heap();
-  // not sure how much I like this: should we really store raw pointers in the
-  // env?
-  // Also not sure how much we should rely on copy semantics: atm I'm fairly
-  // sure
-  // we are just returning a pointer to some static memory. Clearly this won't
-  // work
-  // on things like lists, or indeed anything where we will want to take over
-  // ownership of an object.
-  // for (auto it = scope.begin(); it != scope.end(); ++it) {
-  //  delete it->second;
-  //}
+
 }
 
 void Env::def(std::string id, SExp *value) {
@@ -198,4 +186,78 @@ SExp *Env::mk_define() {
   SExp *primitive_define =
       heap.allocate(new PrimitiveFunction(define, "define"));
   return primitive_define;
+}
+
+
+
+SExp*  Heap::allocate(SExp* new_object) {
+    //objects.push_back(Cell(new_object));
+    std::pair<SExp*, bool> entry (new_object, false);
+    std::cout << "Storing " << new_object << std::endl;
+    objects.insert( entry );
+    return new_object;
+}
+
+//The heap class is responsible for manageing the memory usage of 
+//the program, so it needs to clean up the pointers. 
+Heap::~Heap() {
+    for (auto it = objects.begin(); it != objects.end(); ++it) {
+        std::cout << "Deleting " << it-> first << std::endl;
+        delete it->first;
+    }
+}
+
+//setup the heap for mark and sweep: set all the usage marks to zero
+void Heap::reset_marks() {
+    for (auto it = objects.begin(); it != objects.end(); ++it) {
+        it->second = false;
+    }
+}
+//sweep memory, cleaning up anything marked for deletion. 
+void Heap::sweep() {
+    for (auto it = objects.begin(), next = objects.begin(); it != objects.end(); it = next) {
+      next = it; ++next;
+
+        if (!(it->second)) {
+            SExp* ptr =  it->first; //cleanup memory managed by this key
+            objects.erase(it);
+            std::cout << "Deleting " << ptr << std::endl;
+            delete ptr; //remove from the heap
+        }
+    }
+}
+
+void Heap::mark(SExp* addr) {
+    auto entry = objects.find(addr);
+    if (entry == objects.end()) {
+        throw implementation_error("This shouldn't happen: encountered unmanaged address");
+    }
+    //mark memory as used
+    entry->second = true;
+    std::cout << "Marked " << entry->first << " as in use" << std::endl;
+    auto expr_type = entry->first->type();
+    //Lists and functions can contain references to other objects: we need to recursively trace out their tree
+    if (expr_type == LispType::List) {
+        auto list = static_cast<List*> (addr);
+        for (auto it = list->elems.begin(); it!= list->elems.end(); ++it) {
+            //mark all sub elements as well
+            mark(*it);
+        }
+    }
+    //so far no other compound types.
+    return; 
+}
+
+//naive mark-and-sweep: take the environment bindings, and walk through the 
+//objects described by their bindings, marking everything reachable from the 
+//root nodes as in use. Then iterate through the object map freeing everything 
+//that wasn't reachable; these things have no bindings to the rest of the program 
+//and are thus garbage. 
+void Heap::collect_garbage(Env& env) {
+    reset_marks();
+    for (auto it = env.scope.begin(); it != env.scope.end(); ++it) {
+        SExp* addr = it->second;
+        mark(addr);
+    }
+    sweep();
 }
