@@ -1,13 +1,12 @@
 #include "lexer.h"
-#include "lisp_exceptions.h"
 
-#include <sstream>
-#include <string>
+//TODO lex negative numbers and comments properly
 
 const char newline('\n'); // platform dependent
 
 Token Lexer::get_token() {
-  consume_spaces();
+  stream >> std::ws; //niels suggestion: check this works and remove redundant fn's if so
+  //consume_spaces();
   auto c = stream.get();
   if (c == '(') {
     return Token::open_bracket;
@@ -25,19 +24,27 @@ Token Lexer::get_token() {
     return lisp_bool(c);
   } else if (c == EOF) {
     return Token::eof;
+  } else if (c == ';') {
+    consume_comment();
+    return get_token();
   }
   throw implementation_error("Non-irrefutable logic pattern in lexer");
 }
-
+//ignore whitespace characters, keeping track of the internal line number counter. 
 void Lexer::consume_spaces() {
   char c = stream.get();
-  while (c == ' ' || c == newline) {
+  while (std::isspace(c) ) {
     if (c == newline) {
       ++linenum;
     }
     c = stream.get();
   }
   stream.putback(c);
+  return;
+}
+//called when the comment character ; is encountered: ignore everything until a newline
+void Lexer::consume_comment() {
+  for (char c = stream.get(); c != newline; c = stream.get());
   return;
 }
 Token Lexer::lisp_number(char c) {
@@ -92,22 +99,6 @@ Token Lexer::lisp_atom(char c) {
   }
   stream.putback(c);
   std::string str = buf.str();
-  // think we can treat all of these as ordinary functions rather than doing
-  // pattern matching.
-  // if (str == "define") {
-  //  return Token::kw_define;
-  //} else if (str == "lambda") {
-  //  return Token::kw_lambda;
-  //} else if (str == "if") {
-  //  return Token::kw_if;
-  //} else if (str == "else") {
-  //  return Token::kw_else;
-  //} else if (str == "cond") {
-  //  return Token::kw_cond;
-  //} else {
-  //  parsed_str = str;
-  //  return Token::atom;
-  //}
   parsed_str = str;
   return Token::atom;
 }
@@ -128,14 +119,15 @@ Token Lexer::lisp_bool(char c) {
                            "Unexpected character following #: expected t or f");
   }
 }
+//valid components of lisp atoms 
 bool Lexer::is_lisp_symbol(char c) {
-  //"!$%&|*+-/:<=?@^_~"
   // this is a little bit dumb
   return (isalpha(c) || c == '!' || c == '$' || c == '%' || c == '&' ||
           c == '|' || c == '*' || c == '+' || c == '-' || c == '/' ||
           c == ':' || c == '<' || c == '>' || c == '=' || c == '?' ||
           c == '@' || c == '^' || c == '_' || c == '~');
 }
+//valid
 bool Lexer::is_delim(char c) {
-  return (c == ' ' || c == '\n' || c == '\r' || c == EOF);
+  return (std::isspace(c) || c == EOF);
 }

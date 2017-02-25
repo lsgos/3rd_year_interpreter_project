@@ -7,6 +7,10 @@
 #include "lisp_exceptions.h"
 #include "sexp.h"
 
+//The parser converts a stream of characters inputted to it to 
+//expressions of the lisp language. It encapsulates the lower 
+//level lexer class. 
+
 class Parser {
 public:
   Parser(std::istream &instream) : lexer(Lexer(instream)) {}

@@ -4,40 +4,21 @@
 #include "lisp_exceptions.h"
 #include <functional>
 #include <iostream>
+#include <unordered_map>
 #include <list>
 #include <memory>
 #include <string>
 
-class SExp;
+//This header file is the core of the language: this defines the 
+//datatypes of the language. All valid expressions are s-expressions, 
+//or symbolic expressions, either primitive datatypes or lists of them. 
+//Lisp data is represented by an abstract class which the datatypes 
+//inherit from. 
+
+//forward declaration of the env class to avoid circular dependency: 
+//see env.h for details
 class Env;
-// typedef std::unique_ptr<SExp> sexp_ptr;
-
-// Alternatively, we could just use shared_ptrs instead?
-// Or use const * pointers and delegate garbage collection
-// to the Env datatype. Then we can use mark-and-sweep or
-// similar.
-
-// Possibly can use references to a managed cell type,
-// stored in the env, exclusively? then GC the envs.
-// class SexpPtr {
-//  std::unique_ptr<SExp> unique_value;
-//  SExp *ref_value;
-//
-// public:
-//  void evaluate();
-//};
-// this is a helper function to deal with the default behaviour of the unique
-// ptr reset function, which does not check if it is trying to reset the pointer
-// to the memory it currently points at. We want to be able to do this, so we
-// need
-// this helper
-// void maybe_reset(sexp_ptr &unique_ptr, SExp *new_ptr);
-// void evaluate(sexp_ptr &expression, Env &env);
-// Classes to represent s-expressions.
-// The visitor pattern used means that SExps only posseses a single function,
-// that returns the address of an
-// S-expression. Then visitor classes are used to dispatch functions across the
-// data structure.
+class SExp;
 
 class Number;
 class String;
@@ -45,6 +26,7 @@ class Bool;
 class Atom;
 class List;
 class PrimitiveFunction;
+class LambdaFunction;
 
 enum class LispType {
   Number,
@@ -58,6 +40,9 @@ enum class LispType {
 
 bool is_function(LispType type);
 
+//Visitor function. This allows classes that recurse through sexp 
+//trees changing the internal state of the visitor class. At 
+//present only useful for the representation function. 
 class SExpVisitor {
 public:
   virtual void visit(Number &number) = 0;
@@ -66,34 +51,34 @@ public:
   virtual void visit(Bool &boolean) = 0;
   virtual void visit(List &list) = 0;
   virtual void visit(PrimitiveFunction &fn) = 0;
+  virtual void visit(LambdaFunction& lambda) = 0;
 };
 
+//abstract class representing list data 
 class SExp {
 public:
   // a function allowing visitor classes
   virtual void exec(SExpVisitor &visitor) = 0;
-  // eval returns a unique_ptr to a data structure representing the value of the
-  // SExp. This may be the same as the address of the object for primitive
-  // types, or it may be a new data structure, for function calls (lists). The
-  // helper function evaluate should be used to handle the pointer swap.
-  // TODO: would it be neater to create a unique_ptr wrapper class with these
-  // characteristics?
+  //eval returns a pointer to an SExp containing the 
+  //value of the lisp expression. May be the same as the 
+  //current pointer (primitive datatypes are their own values), 
+  //the value defined in the symbol table (for atoms) or 
+  //a new value constructed by function evaluation (for lists).
+  //Garbage collection is handled by the Env class 
   virtual SExp *eval(Env &env) = 0;
   // returns an enum value giving which subclass of SExp an instantiation of
   // this interface actually is. This is needed when one expects a specific type
   // (e.g numbers for numeric primitives, functions for function application)
   // and one has to downcast to the type from the generic in order to extract
-  // its data. Checking with this first preserves sanity
+  // its data. Checking with this first preserves safety
   virtual LispType type() const = 0;
   virtual ~SExp() {}
-
-private:
-  // ban the assingnment operator by making it private
-  SExp *operator=(const SExp *rhs);
 };
 
+//Only floating point numbers are provided. This simplifies implementation
+//but is used in mainstream, useful languages like Lua and Javascript. 
+//Numbers are their own values
 class Number : public SExp {
-  // numbers eval onto their value
 public:
   Number(double number) : number(number) {}
   ~Number() override {}
@@ -107,7 +92,8 @@ public:
 private:
   double number;
 };
-
+//string datatype, basically the same as number, a primitive type. 
+//Like numbers, strings are their own values. 
 class String : public SExp {
 public:
   String(std::string str) : str(str) {}
@@ -121,6 +107,9 @@ private:
   std::string str;
 };
 
+//Atoms represent symbols. While the actual data is a string, an atom 
+//is semantically totally different: it is evaluated by replacing it 
+//with it's defined value in the symbol table in env. 
 class Atom : public SExp {
 public:
   Atom(std::string id) : id(id) {}
@@ -134,6 +123,7 @@ private:
   std::string id;
 };
 
+//Booleans, another primitve type. See above. 
 class Bool : public SExp {
 public:
   Bool(bool val) : value(val) {}
@@ -146,8 +136,8 @@ public:
 private:
   bool value;
 };
-// List data object. Note that this class behaves as a single object: the actual
-// linked list to the s-exps it containts is in List.elems
+// Linked lists. Lists are eval'ed as function calls, of the form 
+//(f arg1 arg2 ...) 
 class List : public SExp {
 public:
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
@@ -159,21 +149,9 @@ public:
   List() {}
 };
 
-// interface to represent lisp function objects.
+// interface to represent lisp function objects. 
 class Function : public SExp {
 public:
-  // want to pass this by reference, and have the ability to change sexp_ptr to
-  // point at a new structure, or
-  // take ownership of it. Possibly release it before passing it in? We want
-  // ability to mutate and return without
-  // copying, as well as to read from and create a new object (e.g sum). Also
-  // want to cheaply reference objects
-  // saved in the scope: feels wrong that (car l) requires copying the whole of
-  // l, taking the car, then throwing
-  // away the copy! on the other hand, if we always use references, (cons x l)
-  // requires copying c and l in order to
-  // leave them both immutable. Alternative is mutable variables, but this
-  // doesn't really fit scheme's model well
   virtual SExp *call(std::list<SExp *>, Env &) = 0;
   virtual ~Function() {}
 };
@@ -200,19 +178,22 @@ public:
   ~PrimitiveFunction() override {}
 };
 
+//user defined function closures. 
 class LambdaFunction : public Function {
 private:
-  const Env *closure;
-  std::list<Atom *> params;
+
   std::list<SExp *> args;
   std::list<SExp *> body;
 
 public:
   virtual SExp *call(std::list<SExp *> args, Env &env) override;
   LispType type() const override { return LispType::LambdaFunction; }
+  void exec(SExpVisitor& visitor) override { visitor.visit(*this); }
+  SExp * eval(Env &env) override {return this;}
+  ~LambdaFunction() override {}
 };
 
-// visitor class, writes a representation of an s-expression to string
+// visitor class, writes a representation of an s-expression to a stream
 class Representor : public SExpVisitor {
 private:
   std::ostream &stream;
@@ -225,6 +206,7 @@ public:
   void visit(Atom &atom);
   void visit(List &list);
   void visit(PrimitiveFunction &fn);
+  void visit(LambdaFunction& lambda);
 };
 
 #endif

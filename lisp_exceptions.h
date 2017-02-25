@@ -4,6 +4,8 @@
 #include <exception>
 #include <string>
 
+//custom exceptions used by lisp.
+
 class parser_exception : public std::exception {
 public:
   virtual const char *what() const throw() { return msg.c_str(); }

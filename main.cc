@@ -21,7 +21,7 @@ int main() {
 
   {
     auto p = Parser(std::cin);
-    Env env = Env();
+    GlobalEnv env = GlobalEnv();
     while (true) {
       try {
         auto sexp = p.read_sexp(env);

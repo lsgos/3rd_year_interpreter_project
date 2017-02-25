@@ -107,3 +107,8 @@ void Representor::visit(List &list) {
 void Representor::visit(PrimitiveFunction &fn) {
   stream << "<primitive " << fn.get_name() << " >";
 }
+
+void Representor::visit(LambdaFunction& lambda) {
+  stream << "<lambda ";
+  
+}

@@ -7,7 +7,7 @@
 
 // a function to abstract the creation of numeric primitives functions
 SExp *
-Env::mk_numeric_primitive(std::function<double(double acc, double x)> func,
+GlobalEnv::mk_numeric_primitive(std::function<double(double acc, double x)> func,
                           std::string funcname) {
 
   // generate a function object to apply the primitive to a lisp list
@@ -49,63 +49,73 @@ Env::mk_numeric_primitive(std::function<double(double acc, double x)> func,
 }
 
 // called to create a blank environment: bind the language builtins
-Env::Env() : enclosing_scope(nullptr) { bind_primitives(); }
+GlobalEnv::GlobalEnv() { 
+  std::unordered_map<std::string, SExp* > root;
+  scope.push_back(root);
+  bind_primitives(); 
+  } 
 
 // this creates a new closure, pointing to the one that created it.
-Env::Env(Env *env) {
-  enclosing_scope = env;
-  return;
-}
-
 SExp *Env::lookup(std::string id) {
-  auto x = scope.find(id);
-  if ((x == scope.end())) {
-    if (enclosing_scope != nullptr) {
-      // if theres a reference to a parent scope, try looking stuff up in that
-      // if this lookup failed
-      return enclosing_scope->lookup(id);
-    } else {
-      // undefined
-      return nullptr;
-    }
-  } else {
-    return x->second;
+  for (auto it = scope.rbegin(); it != scope.rend(); ++it) {
+    auto x = it->find(id);
+    if (x == it->end()) continue;
+    else return x->second;
   }
+  return nullptr;
 } 
 
 
-void Env::bind_primitives() {
-  scope["+"] = mk_numeric_primitive(
-      [](double acc, double x) -> double { return acc + x; }, "+");
-  scope["-"] = mk_numeric_primitive(
-      [](double acc, double x) -> double { return acc - x; }, "-");
-  scope["*"] = mk_numeric_primitive(
-      [](double acc, double x) -> double { return acc * x; }, "*");
-  scope["/"] = mk_numeric_primitive(
-      [](double acc, double x) -> double { return acc / x; }, "/");
-  scope["cons"] = mk_cons();
-  scope["car"] = mk_car();
-  scope["quote"] = mk_quote();
-  scope["define"] = mk_define();
-  std::cout << "address of proc define: " << scope["define"] << std::endl;
+void GlobalEnv::bind_primitives() {
+  def("+",mk_numeric_primitive(
+      [](double acc, double x) -> double { return acc + x; }, "+"));
+  def("-",mk_numeric_primitive(
+      [](double acc, double x) -> double { return acc - x; }, "-"));
+  def("*",mk_numeric_primitive(
+      [](double acc, double x) -> double { return acc * x; }, "*"));
+  def("/",mk_numeric_primitive(
+      [](double acc, double x) -> double { return acc / x; }, "/"));
+  def("cons", mk_cons());
+  def("car", mk_car());
+  def("quote", mk_quote());
+  def("define", mk_define());
   return;
 }
 
-Env::~Env() {
+GlobalEnv::~GlobalEnv() {
 
 }
 
-void Env::def(std::string id, SExp *value) {
-  scope[id] = value;
+//defineing is only legal in the global scope
+void GlobalEnv::def(std::string id, SExp *value) {
+  //bind to the global scope 
+  scope[0][id] = value;
   auto repr = Representor(std::cout);
   std::cout << "Defining value " << id << " as ";
   value->exec(repr);
   std::cout << std::endl;
   return;
 }
-// TODO can maybe change all these to return sexp_ptr, and hand of the change of
-// control to maybe_reset? maybe safer
-SExp *Env::mk_cons() {
+//bind binds to the innermost scope
+void Env::bind(std::string id, SExp* value) {
+  auto current_scope = scope.rbegin();
+  (*current_scope)[id] = value;
+}
+
+void Env::new_scope() {
+  std::unordered_map <std::string, SExp* > new_scope;
+  scope.push_back(new_scope);
+}
+
+void Env::exit_scope() {
+  scope.pop_back();
+}
+
+SExp* Env::allocate(SExp* new_obj) {
+  //keep all control of allocation in the global scope
+  return global->allocate(new_obj);
+}
+SExp *GlobalEnv::mk_cons() {
   auto cons = [](std::list<SExp *> args, Env &env) -> SExp * {
     if (args.size() != 2) {
       throw evaluation_error("Incorrect number of arguments in primitive cons");
@@ -134,7 +144,7 @@ SExp *Env::mk_cons() {
   return heap.allocate(new PrimitiveFunction(cons, "cons"));
 }
 
-SExp *Env::mk_car() {
+SExp *GlobalEnv::mk_car() {
   auto car = [](std::list<SExp *> args, Env &env) {
     if (args.size() != 1) {
       throw evaluation_error("Incorrect number of arguments in primitive car");
@@ -152,7 +162,7 @@ SExp *Env::mk_car() {
   return primitive_car;
 }
 
-SExp *Env::mk_quote() {
+SExp *GlobalEnv::mk_quote() {
   auto quote = [](std::list<SExp *> args, Env &env) -> SExp * {
     if (args.size() != 1) {
       throw evaluation_error(
@@ -165,7 +175,7 @@ SExp *Env::mk_quote() {
   return primitive_quote;
 }
 
-SExp *Env::mk_define() {
+SExp *GlobalEnv::mk_define() {
   auto define = [](std::list<SExp *> args, Env &env) -> SExp * {
     if (args.size() != 2) {
       throw evaluation_error(
@@ -190,7 +200,7 @@ SExp *Env::mk_define() {
 
 
 
-SExp*  Heap::allocate(SExp* new_object) {
+SExp* Heap::allocate(SExp* new_object) {
     //objects.push_back(Cell(new_object));
     std::pair<SExp*, bool> entry (new_object, false);
     std::cout << "Storing " << new_object << std::endl;
@@ -236,7 +246,8 @@ void Heap::mark(SExp* addr) {
     entry->second = true;
     std::cout << "Marked " << entry->first << " as in use" << std::endl;
     auto expr_type = entry->first->type();
-    //Lists and functions can contain references to other objects: we need to recursively trace out their tree
+    //Lists and functions can contain references to other objects: we need to recursively trace out their tree.
+    //can we implement this as a visitor? might be slightly neater. Or is it unnessarily complicated? 
     if (expr_type == LispType::List) {
         auto list = static_cast<List*> (addr);
         for (auto it = list->elems.begin(); it!= list->elems.end(); ++it) {
@@ -255,9 +266,11 @@ void Heap::mark(SExp* addr) {
 //and are thus garbage. 
 void Heap::collect_garbage(Env& env) {
     reset_marks();
-    for (auto it = env.scope.begin(); it != env.scope.end(); ++it) {
-        SExp* addr = it->second;
-        mark(addr);
+    for (auto block = env.scope.begin(); block != env.scope.end(); ++block) {
+        for (auto it = (*block).begin(); it != (*block).end(); it ++ ){
+          SExp* addr = it->second;
+          mark(addr);
+        }
     }
     sweep();
 }

@@ -1,5 +1,8 @@
 #include "parser.h"
 
+//this function only really exists to hide the lexer implementation: since 
+//no other part of the runtime needs to access this, it can be entirely 
+//encapsulated as a private member of the parser class. 
 SExp *Parser::read_sexp(Env &env) { return parse(env, lexer.get_token()); }
 SExp *Parser::parse(Env &env, Token token) {
   switch (token) {
@@ -35,7 +38,7 @@ SExp *Parser::parse_list(Env &env) {
   return env.allocate(static_cast<SExp *>(ptr));
 }
 // this supports the backtick quote syntactic sugar: '(1 2) is transformed to
-// (quote (1 2))
+// (quote (1 2)) as a macro (i.e before the code is interpreted)
 SExp *Parser::mk_quoted_list(Env &env) {
   auto list = new List;
   list->elems.push_back(env.allocate(new Atom("quote")));
