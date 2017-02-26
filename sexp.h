@@ -1,23 +1,22 @@
 #ifndef SEXP_H
 #define SEXP_H
 
-#include "lisp_exceptions.h"
+#include "env.h"
 #include <functional>
 #include <iostream>
-#include <unordered_map>
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_map>
+// This header file is the core of the language: this defines the
+// datatypes of the language. All valid expressions are s-expressions,
+// or symbolic expressions, either primitive datatypes or lists of them.
+// Lisp data is represented by an abstract class which the datatypes
+// inherit from.
 
-//This header file is the core of the language: this defines the 
-//datatypes of the language. All valid expressions are s-expressions, 
-//or symbolic expressions, either primitive datatypes or lists of them. 
-//Lisp data is represented by an abstract class which the datatypes 
-//inherit from. 
-
-//forward declaration of the env class to avoid circular dependency: 
-//see env.h for details
-class Env;
+// forward declaration of the env class to avoid circular dependency:
+// see env.h for details
+// class Env;
 class SExp;
 
 class Number;
@@ -40,9 +39,9 @@ enum class LispType {
 
 bool is_function(LispType type);
 
-//Visitor function. This allows classes that recurse through sexp 
-//trees changing the internal state of the visitor class. At 
-//present only useful for the representation function. 
+// Visitor function. This allows classes that recurse through sexp
+// trees changing the internal state of the visitor class. At
+// present only useful for the representation function.
 class SExpVisitor {
 public:
   virtual void visit(Number &number) = 0;
@@ -51,20 +50,20 @@ public:
   virtual void visit(Bool &boolean) = 0;
   virtual void visit(List &list) = 0;
   virtual void visit(PrimitiveFunction &fn) = 0;
-  virtual void visit(LambdaFunction& lambda) = 0;
+  virtual void visit(LambdaFunction &lambda) = 0;
 };
 
-//abstract class representing list data 
+// abstract class representing list data
 class SExp {
 public:
   // a function allowing visitor classes
   virtual void exec(SExpVisitor &visitor) = 0;
-  //eval returns a pointer to an SExp containing the 
-  //value of the lisp expression. May be the same as the 
-  //current pointer (primitive datatypes are their own values), 
-  //the value defined in the symbol table (for atoms) or 
-  //a new value constructed by function evaluation (for lists).
-  //Garbage collection is handled by the Env class 
+  // eval returns a pointer to an SExp containing the
+  // value of the lisp expression. May be the same as the
+  // current pointer (primitive datatypes are their own values),
+  // the value defined in the symbol table (for atoms) or
+  // a new value constructed by function evaluation (for lists).
+  // Garbage collection is handled by the Env class
   virtual SExp *eval(Env &env) = 0;
   // returns an enum value giving which subclass of SExp an instantiation of
   // this interface actually is. This is needed when one expects a specific type
@@ -75,9 +74,9 @@ public:
   virtual ~SExp() {}
 };
 
-//Only floating point numbers are provided. This simplifies implementation
-//but is used in mainstream, useful languages like Lua and Javascript. 
-//Numbers are their own values
+// Only floating point numbers are provided. This simplifies implementation
+// but is used in mainstream, useful languages like Lua and Javascript.
+// Numbers are their own values
 class Number : public SExp {
 public:
   Number(double number) : number(number) {}
@@ -92,8 +91,8 @@ public:
 private:
   double number;
 };
-//string datatype, basically the same as number, a primitive type. 
-//Like numbers, strings are their own values. 
+// string datatype, basically the same as number, a primitive type.
+// Like numbers, strings are their own values.
 class String : public SExp {
 public:
   String(std::string str) : str(str) {}
@@ -107,9 +106,9 @@ private:
   std::string str;
 };
 
-//Atoms represent symbols. While the actual data is a string, an atom 
-//is semantically totally different: it is evaluated by replacing it 
-//with it's defined value in the symbol table in env. 
+// Atoms represent symbols. While the actual data is a string, an atom
+// is semantically totally different: it is evaluated by replacing it
+// with it's defined value in the symbol table in env.
 class Atom : public SExp {
 public:
   Atom(std::string id) : id(id) {}
@@ -123,7 +122,7 @@ private:
   std::string id;
 };
 
-//Booleans, another primitve type. See above. 
+// Booleans, another primitve type. See above.
 class Bool : public SExp {
 public:
   Bool(bool val) : value(val) {}
@@ -136,8 +135,8 @@ public:
 private:
   bool value;
 };
-// Linked lists. Lists are eval'ed as function calls, of the form 
-//(f arg1 arg2 ...) 
+// Linked lists. Lists are eval'ed as function calls, of the form
+//(f arg1 arg2 ...)
 class List : public SExp {
 public:
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
@@ -149,7 +148,7 @@ public:
   List() {}
 };
 
-// interface to represent lisp function objects. 
+// interface to represent lisp function objects.
 class Function : public SExp {
 public:
   virtual SExp *call(std::list<SExp *>, Env &) = 0;
@@ -178,19 +177,26 @@ public:
   ~PrimitiveFunction() override {}
 };
 
-//user defined function closures. 
+// user defined function closures.
 class LambdaFunction : public Function {
 private:
-
-  std::list<SExp *> args;
+  const std::list<std::string> params;
   std::list<SExp *> body;
+  const Env closure;
 
 public:
+  // constructor: caputures a scope, a list of parameter names and a body, a
+  // sequence of SExps to execute when the function is called.
+  LambdaFunction(Env env, std::list<std::string> params, std::list<SExp *> body)
+      : closure(env), params(params), body(body) {}
   virtual SExp *call(std::list<SExp *> args, Env &env) override;
   LispType type() const override { return LispType::LambdaFunction; }
-  void exec(SExpVisitor& visitor) override { visitor.visit(*this); }
-  SExp * eval(Env &env) override {return this;}
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+  SExp *eval(Env &env) override { return this; }
   ~LambdaFunction() override {}
+  friend class Heap; // needs to access the env and body of lambdas for garbage
+                     // collection
+  friend class Representor;
 };
 
 // visitor class, writes a representation of an s-expression to a stream
@@ -206,7 +212,7 @@ public:
   void visit(Atom &atom);
   void visit(List &list);
   void visit(PrimitiveFunction &fn);
-  void visit(LambdaFunction& lambda);
+  void visit(LambdaFunction &lambda);
 };
 
 #endif

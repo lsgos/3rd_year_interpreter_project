@@ -1,20 +1,19 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include <iostream>
-#include <string>
 #include "lisp_exceptions.h"
-#include <sstream>
 #include <cctype>
+#include <iostream>
+#include <sstream>
+#include <string>
 
-//The lexer transforms a stream of characters into a sequence of tokens, 
-//represented by the token enum, that act as an input to the parser.
-//The tokens represent components of the grammer of the language. 
-//In the cases where the token has an associated unique value, such 
-//as a number or a string, this is stored in the lexer, and must 
-//be retrieved from it using the accessor functions by the parser 
-//when it encounters a appropriate symbol.
-
+// The lexer transforms a stream of characters into a sequence of tokens,
+// represented by the token enum, that act as an input to the parser.
+// The tokens represent components of the grammer of the language.
+// In the cases where the token has an associated unique value, such
+// as a number or a string, this is stored in the lexer, and must
+// be retrieved from it using the accessor functions by the parser
+// when it encounters a appropriate symbol.
 
 enum class Token {
   // lexer tokens: the things that we can encounter in our language.

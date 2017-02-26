@@ -3,60 +3,21 @@
 #include "lisp_exceptions.h"
 #include <list>
 #include <memory>
-// this inheritance model is quite complicated due to a lot of pointers flying
-// around: would using a monolithic 'thing'
-// datatype be better?
-
-// this is a helper function to deal with the default behaviour of the unique
-// ptr reset function, which does not check if it is trying to reset the pointer
-// to the memory it currently points at. We want to be able to do this, so we
-// need this helper. Note that this neatly handles garbage collection of the
-// evaluated
-// structure
+#include <sstream>
 
 bool is_function(LispType type) {
   return (type == LispType::PrimitiveFunction ||
           type == LispType::LambdaFunction);
 }
 
-// void maybe_reset(SExp& &unique_ptr, SExp& &new_ptr) {
-//  if (unique_ptr.get() != new_ptr.get()) {
-//    unique_ptr = std::move(new_ptr); // move ownership
-//  } else {
-//    // pointer 'own' the same resource; release the new one.
-//    unique_ptr.release();
-//    unique_ptr = std::move(new_ptr);
-//  }
-//  return;
-//}
-//
-// simple helper. Note that evaluate replaces a unique pointer to an sexp with
-// the value of the sexp it points to.
-// void evaluate(SExp& &expression, Env &env) {
-//  SExp& evaled = expression->eval(env);
-//  if (expression.get() != evaled.get()) {
-//    expression = std::move(evaled); // move ownership
-//  } else {
-//    // pointer 'own' the same resource; release the new one.
-//    expression.release();
-//    expression = std::move(evaled);
-//  }
-//  return;
-//}
-//
-// todo: is it clearer to wrap up the functionality of sexp pointers in a class?
-// maybe not
-
-// Later, this will return the object named by the atom. Should we return a copy
-// or a reference to it??
-SExp *Atom::eval(Env &env) { 
-    auto value = env.lookup(id); 
-    if (value != nullptr) {
-      return value;
-    } else {
-      throw evaluation_error("Encountered undefined atom " + id);
-    }
+SExp *Atom::eval(Env &env) {
+  auto value = env.lookup(id);
+  if (value != nullptr) {
+    return value;
+  } else {
+    throw evaluation_error("Encountered undefined atom " + id);
   }
+}
 
 SExp *List::eval(Env &env) {
   if (elems.empty()) {
@@ -65,14 +26,47 @@ SExp *List::eval(Env &env) {
   SExp *head = elems
                    .front()     // first element in the list
                    ->eval(env); // evaluate the expression
-  elems.pop_front();
+  auto args = elems; //copy elems to avoid mutating the list
+  args.pop_front();
 
   if (!is_function(head->type())) {
     throw evaluation_error(
         "Expected function"); // TODO make this error less shit
   }
   auto func = static_cast<Function *>(head);
-  SExp *result = func->call(elems, env);
+  SExp *result = func->call(args, env);
+  return result;
+}
+
+SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
+  // check the argument list matches the params of the function
+  if (args.size() != params.size()) {
+
+    std::stringstream msg;
+    auto repr = Representor(msg);
+    msg << "Found mismatched argument list in function ";
+    this->exec(repr); // print function name to msg string
+    msg << ", Expected " << params.size() << ", found " << params.size();
+    throw evaluation_error(msg.str());
+  }
+  auto f_env =
+      closure; // create a copy of the closure to use when evaluating the body
+  // arg list matches message: go through the list of provided argument,
+  // evaluating each one and binding the result to the closure.
+  auto arg = args.begin();
+  for (auto par = params.begin(); par != params.end(); ++par, ++arg) {
+    (*arg) = (*arg)->eval(env);
+    f_env.def(*par, *arg);
+  }
+  SExp *result;
+  // evaluate the body of the function, returning the result of the last
+  // expression
+  // note that the function body is evaluated in the scope captured by the
+  // lambda function,
+  // not the calling scope.
+  for (auto it = body.begin(); it != body.end(); ++it) {
+    result = (*it)->eval(f_env);
+  }
   return result;
 }
 
@@ -105,10 +99,21 @@ void Representor::visit(List &list) {
 }
 
 void Representor::visit(PrimitiveFunction &fn) {
-  stream << "<primitive " << fn.get_name() << " >";
+  stream << "<primitive " << fn.get_name() << ">";
 }
 
-void Representor::visit(LambdaFunction& lambda) {
+void Representor::visit(LambdaFunction &lambda) {
+  // e.g <lambda x y>
   stream << "<lambda ";
-  
+  if (!lambda.params.empty()) {
+    stream << lambda.params.front();
+    for (auto it = ++lambda.params.begin(); it != lambda.params.end(); it++) {
+      stream << " ";
+      stream << *it;
+    }
+    for (auto it = lambda.body.begin(); it != lambda.body.end(); ++it) {
+      (*it)->exec(*this);
+    }
+  }
+  stream << ">";
 }

@@ -1,7 +1,7 @@
 #ifndef ENV_H
 #define ENV_H
-
-#include "sexp.h"
+#include "lisp_exceptions.h"
+//#include "sexp.h"
 #include <functional>
 #include <list>
 #include <string>
@@ -13,8 +13,12 @@
 //builtins are added to the symbol table by the bind_primitives command. 
 class Env;
 class GlobalEnv;
+class SExp;
 
-
+//The heap class is responsibe for garbage collection, maintaining a list of 
+//all memory adresses in current use. The most important functions are 
+//allocate, which wraps calls to new within the lisp world. All memory thus 
+//allocated is mark-and-sweepable. 
 class Heap {
     private:
     std::unordered_map<SExp*, bool> objects;
@@ -39,22 +43,17 @@ class Env {
    GlobalEnv* const global;
    
   protected:
-    std::vector < std::unordered_map < std::string, SExp* > > scope;
+    std::unordered_map < std::string, SExp* > scope;
     //this should never be used except by inheritin classes 
     Env() : global(nullptr) {}
   public:
-    void exit_scope();
-    void new_scope();
     virtual Env capture_scope() {
       //if the scope is not global, just provide a copy. 
       return *this;
     }
     virtual SExp* allocate(SExp* obj);
     SExp *lookup(std::string id);
-    void bind(std::string id, SExp *);
-    virtual void def(std::string id, SExp* ) {
-      throw evaluation_error("Illegal define in non-global scope");
-    }
+    void def(std::string id, SExp* );
     //TODO finish this crud
     
     Env(GlobalEnv& g);
@@ -79,12 +78,11 @@ private:
   SExp *mk_quote();
   SExp *mk_define();
   SExp *mk_car();
-
+  SExp *mk_lambda();
 public:
   // lookup the value with name id and put it in p if it exists
   GlobalEnv();
-  //Env capture_scope() override;
-  void def(std::string id, SExp *) override;
+  Env capture_scope() override;
   SExp *allocate(SExp *obj) override { return heap.allocate(obj); }
   void bind_primitives();
   ~GlobalEnv() override;

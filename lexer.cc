@@ -1,12 +1,13 @@
 #include "lexer.h"
 
-//TODO lex negative numbers and comments properly
+// TODO lex negative numbers and comments properly
 
 const char newline('\n'); // platform dependent
 
 Token Lexer::get_token() {
-  stream >> std::ws; //niels suggestion: check this works and remove redundant fn's if so
-  //consume_spaces();
+  stream >> std::ws; // niels suggestion: check this works and remove redundant
+                     // fn's if so
+  // consume_spaces();
   auto c = stream.get();
   if (c == '(') {
     return Token::open_bracket;
@@ -30,10 +31,11 @@ Token Lexer::get_token() {
   }
   throw implementation_error("Non-irrefutable logic pattern in lexer");
 }
-//ignore whitespace characters, keeping track of the internal line number counter. 
+// ignore whitespace characters, keeping track of the internal line number
+// counter.
 void Lexer::consume_spaces() {
   char c = stream.get();
-  while (std::isspace(c) ) {
+  while (std::isspace(c)) {
     if (c == newline) {
       ++linenum;
     }
@@ -42,9 +44,11 @@ void Lexer::consume_spaces() {
   stream.putback(c);
   return;
 }
-//called when the comment character ; is encountered: ignore everything until a newline
+// called when the comment character ; is encountered: ignore everything until a
+// newline
 void Lexer::consume_comment() {
-  for (char c = stream.get(); c != newline; c = stream.get());
+  for (char c = stream.get(); c != newline; c = stream.get())
+    ;
   return;
 }
 Token Lexer::lisp_number(char c) {
@@ -119,7 +123,7 @@ Token Lexer::lisp_bool(char c) {
                            "Unexpected character following #: expected t or f");
   }
 }
-//valid components of lisp atoms 
+// valid components of lisp atoms
 bool Lexer::is_lisp_symbol(char c) {
   // this is a little bit dumb
   return (isalpha(c) || c == '!' || c == '$' || c == '%' || c == '&' ||
@@ -127,7 +131,5 @@ bool Lexer::is_lisp_symbol(char c) {
           c == ':' || c == '<' || c == '>' || c == '=' || c == '?' ||
           c == '@' || c == '^' || c == '_' || c == '~');
 }
-//valid
-bool Lexer::is_delim(char c) {
-  return (std::isspace(c) || c == EOF);
-}
+// valid
+bool Lexer::is_delim(char c) { return (std::isspace(c) || c == EOF); }

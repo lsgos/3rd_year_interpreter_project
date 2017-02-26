@@ -4,7 +4,7 @@
 #include <exception>
 #include <string>
 
-//custom exceptions used by lisp.
+// custom exceptions used by lisp.
 
 class parser_exception : public std::exception {
 public:
