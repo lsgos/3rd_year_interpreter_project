@@ -2,13 +2,7 @@
 This is no longer simply the lexer, but now includes large parts of the business
 code of an interpreter.
 */
-#include <cctype>
 #include <iostream>
-#include <map>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <unordered_map>
 
 // TODO: check if this is the right way to do modules correctly
 #include "env.h"
