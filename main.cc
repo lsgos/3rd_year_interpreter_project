@@ -24,15 +24,20 @@ int main() {
     GlobalEnv env = GlobalEnv();
     while (true) {
       try {
+        std::cout << " >>  ";
         auto sexp = p.read_sexp(env);
         Representor repr = Representor(std::cout);
         sexp = sexp->eval(env);
         sexp->exec(repr);
         std::cout << "\n";
         env.collect_garbage();
-      } catch (std::exception &e) {
-        std::cout << "Exception: " << e.what() << std::endl;
+      } catch (exit_interpreter &e) {
         break;
+      } catch (std::exception &e) {
+        //todo: make sure EOF kills the interpreter as well
+        std::cout << "Exception: " << e.what() << std::endl;
+        std::cin.clear();
+        std::cin.ignore(1000,'\n');
       }
     }
   }

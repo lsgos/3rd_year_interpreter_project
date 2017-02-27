@@ -89,7 +89,7 @@ public:
   virtual SExp *eval(Env &env) override { return this; }
 
 private:
-  double number;
+  const double number;
 };
 // string datatype, basically the same as number, a primitive type.
 // Like numbers, strings are their own values.
@@ -103,7 +103,7 @@ public:
   LispType type() const override { return LispType::String; }
 
 private:
-  std::string str;
+  const std::string str;
 };
 
 // Atoms represent symbols. While the actual data is a string, an atom
@@ -119,7 +119,7 @@ public:
   LispType type() const override { return LispType::Atom; }
 
 private:
-  std::string id;
+  const std::string id;
 };
 
 // Booleans, another primitve type. See above.
@@ -133,14 +133,15 @@ public:
   LispType type() const override { return LispType::Bool; }
 
 private:
-  bool value;
+  const bool value;
 };
 // Linked lists. Lists are eval'ed as function calls, of the form
 //(f arg1 arg2 ...)
 class List : public SExp {
 public:
+  List(std::list<SExp* > list) : elems(list) {}
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
-  std::list<SExp *> elems;
+  const std::list<SExp *> elems; //TODO fix this so this can be declared const: maybe add a new constructor? 
   virtual SExp *eval(Env &env) override;
   LispType type() const override { return LispType::List; }
   ~List() override {}

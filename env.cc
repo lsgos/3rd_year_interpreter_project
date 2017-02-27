@@ -79,6 +79,7 @@ void GlobalEnv::bind_primitives() {
   def("quote", mk_quote());
   def("define", mk_define());
   def("lambda", mk_lambda());
+  def("exit", mk_exit());
   return;
 }
 
@@ -234,6 +235,15 @@ SExp *GlobalEnv::mk_lambda() {
   };
   SExp * primitive_lambda = heap.allocate(new PrimitiveFunction(lambda, "lambda"));
   return primitive_lambda;
+}
+
+SExp *GlobalEnv::mk_exit() {
+   auto lambda= [](std::list<SExp *> args, Env &env) -> SExp * {
+     throw exit_interpreter();
+     return nullptr;
+  };
+  SExp * exit = heap.allocate(new PrimitiveFunction(lambda, "exit"));
+  return exit;
 }
 
 SExp *Heap::allocate(SExp *new_object) {

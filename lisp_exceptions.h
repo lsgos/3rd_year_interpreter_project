@@ -39,4 +39,11 @@ private:
   std::string msg;
 };
 
+class exit_interpreter : public std::exception {
+  virtual const char *what() const throw() { return msg.c_str(); }
+  private:
+    std::string msg;
+    public:
+    exit_interpreter() : msg("") {}
+};
 #endif
