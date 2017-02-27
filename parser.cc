@@ -28,20 +28,19 @@ SExp *Parser::parse(Env &env, Token token) {
   }
 }
 SExp *Parser::parse_list(Env &env) {
-  auto list = std::unique_ptr<List>(new List);
+  std::list<SExp*> elems;
   for (auto token = lexer.get_token(); token != Token::close_bracket;
        token = lexer.get_token()) {
     auto elem = parse(env, token);
-    list->elems.push_back(elem);
+    elems.push_back(elem);
   }
-  auto ptr = list.release();
-  return env.allocate(static_cast<SExp *>(ptr));
+  return env.allocate(new List(elems));
 }
 // this supports the backtick quote syntactic sugar: '(1 2) is transformed to
 // (quote (1 2)) as a macro (i.e before the code is interpreted)
 SExp *Parser::mk_quoted_list(Env &env) {
-  auto list = new List;
-  list->elems.push_back(env.allocate(new Atom("quote")));
-  list->elems.push_back(parse(env, lexer.get_token()));
-  return env.allocate(list);
+  std::list<SExp*> elems;
+  elems.push_back(env.allocate(new Atom("quote")));
+  elems.push_back(parse(env, lexer.get_token()));
+  return env.allocate(new List(elems));
 }

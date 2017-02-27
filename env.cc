@@ -133,9 +133,9 @@ SExp *GlobalEnv::mk_cons() {
     // Copy the list: this only copies the pointers, so it should be relatively
     // cheap
     auto list_cdr = static_cast<List *>(cdr);
-    SExp *cons_list = env.allocate(new List(*list_cdr));
-    static_cast<List *>(cons_list)->elems.push_front(car);
-    return cons_list;
+    std::list<SExp *> cons_list = list_cdr->elems;
+    cons_list.push_back(car);
+    return env.allocate(new List(cons_list));
   };
   return heap.allocate(new PrimitiveFunction(cons, "cons"));
 }
