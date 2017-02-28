@@ -79,6 +79,9 @@ void GlobalEnv::bind_primitives() {
   def("quote", mk_quote());
   def("define", mk_define());
   def("lambda", mk_lambda());
+  def("cdr", mk_cdr());
+  def("if", mk_if());
+
   def("exit", mk_exit());
   return;
 }
@@ -142,21 +145,51 @@ SExp *GlobalEnv::mk_cons() {
 }
 
 SExp *GlobalEnv::mk_car() {
-  auto car = [](std::list<SExp *> args, Env &env) {
+  auto car = [](std::list<SExp *> args, Env &env) -> SExp *{
     if (args.size() != 1) {
       throw evaluation_error("Incorrect number of arguments in primitive car");
     }
     SExp *ls = args.front();
-    args.pop_front();
     ls = ls->eval(env);
     if (ls->type() != LispType::List) {
-      throw evaluation_error("Cannot take the car of a non-list");
+      throw evaluation_error("Cannot ask for the car of a non-list");
     }
-    auto car = static_cast<List *>(ls)->elems.front();
+    auto elems = static_cast<List *>(ls)->elems;
+    if (elems.empty()) {
+      throw evaluation_error("Cannot ask for the car of an empty list");
+    }
+    auto car = elems.front();
     return car;
   };
-  SExp *primitive_car = heap.allocate(new PrimitiveFunction(car, "car"));
-  return primitive_car;
+  return heap.allocate(new PrimitiveFunction(car, "car"));
+}
+//SExp* GlobalEnv::mk_isnull() {
+//  auto car = [](std::list<SExp *> args, Env &env) {
+//    //TODO
+//  };
+//  SExp *primitive_car = heap.allocate(new PrimitiveFunction(car, "car"));
+//  return primitive_car;
+//}
+
+SExp* GlobalEnv::mk_cdr () {
+  auto cdr = [] (std::list<SExp *> args, Env & env) {
+    if (args.size() != 1) {
+      throw evaluation_error("Incorrect number of arguments in primitive cdr");
+    }
+    SExp *ls = args.front();
+    ls = ls->eval(env);
+    if (ls->type() != LispType::List) {
+      throw evaluation_error("Cannot ask for the cdr of a non list type");
+    }
+    auto elems = static_cast<List *>(ls)->elems; //copy list of object
+    if (elems.empty()) {
+      throw evaluation_error("Cannot ask for the cdr of a empty list");
+    }
+    elems.pop_front();
+    return env.allocate(new List(elems));
+  };
+  SExp *primitive_cdr = heap.allocate(new PrimitiveFunction(cdr, "cdr"));
+  return primitive_cdr;
 }
 
 SExp *GlobalEnv::mk_quote() {
@@ -235,6 +268,28 @@ SExp *GlobalEnv::mk_lambda() {
   };
   SExp * primitive_lambda = heap.allocate(new PrimitiveFunction(lambda, "lambda"));
   return primitive_lambda;
+}
+SExp *GlobalEnv::mk_if() {
+  //implement the if special form
+  auto if_sf = [](std::list<SExp *> args, Env& env) -> SExp *{
+    if (args.size()!= 3) {
+      throw evaluation_error("Incorrect number of arguments in if special form");
+    }
+    auto predicate = args.front();
+    args.pop_front();
+    auto then_clause = args.front();
+    args.pop_front();
+    auto else_clause = args.front();
+    //evaluate the predicate expressions
+    predicate = predicate->eval(env);
+    if (is_true(predicate)) {
+      return then_clause->eval(env);
+    } else {
+      return else_clause->eval(env);
+    }
+  };
+  SExp * primitive_if = heap.allocate(new PrimitiveFunction(if_sf, "if"));
+  return primitive_if;
 }
 
 SExp *GlobalEnv::mk_exit() {

@@ -5,6 +5,12 @@
 #include <memory>
 #include <sstream>
 
+//this returns false if exp = #f, true else
+bool is_true(SExp* exp) {
+  return !(exp->type() == LispType::Bool && static_cast<Bool*>(exp)->val() == false);
+}
+
+
 bool is_function(LispType type) {
   return (type == LispType::PrimitiveFunction ||
           type == LispType::LambdaFunction);

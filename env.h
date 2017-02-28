@@ -78,8 +78,11 @@ private:
   SExp *mk_quote();
   SExp *mk_define();
   SExp *mk_car();
+  SExp *mk_cdr();
   SExp *mk_lambda();
+  SExp *mk_if();
   SExp *mk_exit();
+  SExp *mk_isnull();
 public:
   // lookup the value with name id and put it in p if it exists
   GlobalEnv();

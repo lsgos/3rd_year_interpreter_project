@@ -6,7 +6,8 @@ const char newline('\n'); // platform dependent
 
 Token Lexer::get_token() {
   stream >> std::ws; // niels suggestion: check this works and remove redundant
-                     // fn's if so
+                     // fn's if so. 
+                     //It does but how do we count new lines? 
   // consume_spaces();
   auto c = stream.get();
   if (c == '(') {

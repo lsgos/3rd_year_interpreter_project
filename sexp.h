@@ -38,7 +38,7 @@ enum class LispType {
 };
 
 bool is_function(LispType type);
-
+bool is_true(SExp*);
 // Visitor function. This allows classes that recurse through sexp
 // trees changing the internal state of the visitor class. At
 // present only useful for the representation function.
@@ -74,37 +74,85 @@ public:
   virtual ~SExp() {}
 };
 
-// Only floating point numbers are provided. This simplifies implementation
-// but is used in mainstream, useful languages like Lua and Javascript.
-// Numbers are their own values
-class Number : public SExp {
-public:
-  Number(double number) : number(number) {}
-  ~Number() override {}
-  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
-  double val() { return number; }
-  LispType type() const override { return LispType::Number; }
-  // Numbers are primitive, so they are their own values. Similarly for all
-  // types except lists
-  virtual SExp *eval(Env &env) override { return this; }
-
-private:
-  const double number;
+//template class for 'primitive' types, like numbers and booleans. Primitive types 
+//all essentially just box a c++ value, and they all eval to themselves, so some 
+//(but not all) of the boilerplate of creating these classes can be abstracted 
+//to a template. The rest of the code to create them is still irritatingly same-y, 
+//but this is unavoidable in order to implement type() and exec() correctly. 
+template <typename T> class PrimitiveType : public SExp {
+  const T value;
+  public:
+    PrimitiveType<T>(T value) : value(value) {}
+    ~PrimitiveType() {}
+    T val() { return value;}
+    virtual SExp* eval(Env &env) override { return this;}
 };
+
+
+//tempting but probably unwise to make this a macro? 
+class Number : public PrimitiveType<double> {
+  public:
+  Number(double x) : PrimitiveType<double>(x) {}
+  LispType type() const override{ return LispType::Number; }
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+};
+
+class String : public PrimitiveType<std::string> {
+  public:
+  String(std::string str) : PrimitiveType<std::string>(str) {}
+  LispType type() const override { return LispType::String; }
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+};
+
+class Bool : public PrimitiveType<bool> {
+  public:
+  Bool(bool x) : PrimitiveType<bool>(x) {}
+  LispType type() const override { return LispType::Bool; }
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+};
+// Booleans, another primitve type. See above.
+//class Bool : public SExp {
+//public:
+//  Bool(bool val) : value(val) {}
+//  ~Bool() {}
+//  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+//  bool val() { return value; }
+//  virtual SExp *eval(Env &env) override { return this; }
+//  LispType type() const override { return LispType::Bool; }
+//
+//private:
+//  const bool value;
+//};
+
+//;
+//;class Number : public SExp {
+//;public:
+//;  Number(double number) : number(number) {}
+//;  ~Number() override {}
+//;  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+//;  double val() { return number; }
+//;  LispType type() const override { return LispType::Number; }
+//;  // Numbers are primitive, so they are their own values. Similarly for all
+//;  // types except lists
+//;  virtual SExp *eval(Env &env) override { return this; }
+//;
+//;private:
+//;  const double number;
+//};
 // string datatype, basically the same as number, a primitive type.
 // Like numbers, strings are their own values.
-class String : public SExp {
-public:
-  String(std::string str) : str(str) {}
-  ~String() {}
-  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
-  std::string val() { return str; }
-  virtual SExp *eval(Env &env) override { return this; }
-  LispType type() const override { return LispType::String; }
-
-private:
-  const std::string str;
-};
+//class String : public SExp {
+//public:
+//  String(std::string str) : str(str) {}
+//  ~String() {}
+//  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
+//  std::string val() { return str; }
+//  virtual SExp *eval(Env &env) override { return this; }
+//  LispType type() const override { return LispType::String; }
+//
+//private:
+//  const std::string str;
+//};
 
 // Atoms represent symbols. While the actual data is a string, an atom
 // is semantically totally different: it is evaluated by replacing it
@@ -122,19 +170,6 @@ private:
   const std::string id;
 };
 
-// Booleans, another primitve type. See above.
-class Bool : public SExp {
-public:
-  Bool(bool val) : value(val) {}
-  ~Bool() {}
-  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
-  bool val() { return value; }
-  virtual SExp *eval(Env &env) override { return this; }
-  LispType type() const override { return LispType::Bool; }
-
-private:
-  const bool value;
-};
 // Linked lists. Lists are eval'ed as function calls, of the form
 //(f arg1 arg2 ...)
 class List : public SExp {
