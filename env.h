@@ -8,9 +8,12 @@
 #include <unordered_map>
 #include <vector> 
 
-//The Env manages scope resolution and definition via a symbol table, and the Heap tracks 
-//and garbage collects resources created by the language runtime. Primitive language 
-//builtins are added to the symbol table by the bind_primitives command. 
+/*
+The Env manages scope resolution and definition via a symbol table, and the Heap tracks 
+and garbage collects resources created by the language runtime. Primitive language 
+builtins are added to the symbol table by the bind_primitives command. 
+
+*/
 class Env;
 class GlobalEnv;
 class SExp;
@@ -74,6 +77,7 @@ private:
   Heap heap;
   SExp *mk_numeric_primitive(std::function<double(double acc, double x)> func,
                              std::string funcname);
+  
   SExp *mk_cons();
   SExp *mk_quote();
   SExp *mk_define();
@@ -83,6 +87,8 @@ private:
   SExp *mk_if();
   SExp *mk_exit();
   SExp *mk_isnull();
+  SExp *mk_numeric_equals();
+  SExp *mk_eq();
 public:
   // lookup the value with name id and put it in p if it exists
   GlobalEnv();
