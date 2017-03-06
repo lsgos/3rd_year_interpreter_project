@@ -5,10 +5,7 @@
 const char newline('\n'); // platform dependent
 
 Token Lexer::get_token() {
-        stream >>
-            std::ws; // niels suggestion: check this works and remove redundant
-                     // fn's if so.
-                     // It does but how do we count new lines?
+        stream >> std::ws; // TODO how to count newlines if we use this?
         // consume_spaces();
         auto c = stream.get();
         if (c == '(') {
@@ -17,7 +14,7 @@ Token Lexer::get_token() {
                 return Token::close_bracket;
         } else if (c == '\'') {
                 return Token::kw_quote;
-        } else if (isdigit(c)) {
+        } else if (isdigit(c) || c == '-' || c == '.') {
                 return lisp_number(c);
         } else if (is_lisp_symbol(c)) {
                 return lisp_atom(c);
@@ -54,8 +51,13 @@ void Lexer::consume_comment() {
         return;
 }
 Token Lexer::lisp_number(char c) {
-        // todo: deal with negative numbers
         auto buf = std::stringstream("");
+        //- is allowed in numbers, but only as the first character
+        if (c == '-') {
+                buf.put(c);
+                c = stream.get();
+        }
+
         for (; isdigit(c); c = stream.get()) {
                 if (c == EOF) {
                         throw parser_exception(linenum,
@@ -77,9 +79,17 @@ Token Lexer::lisp_number(char c) {
                 }
         }
         if (!(is_delim(c) || c == ')')) {
-                throw parser_exception(
-                    linenum,
-                    "Found unexpected character parsing numeric literal");
+                // the scheme like behaviour is to accept everything that is not
+                // a number as a valid atom (even weird stuff like 3.23214123a
+                // is a valid name)
+                // to get this behaviour, we just reset the scope of the stream
+                // by unloading the buffer, then call list_atom
+                buf.put(c);
+                std::string atom = buf.str();
+                for (auto it = atom.rbegin(); it != atom.rend(); ++it) {
+                        stream.putback(*it);
+                }
+                return lisp_atom(stream.get());
         }
         stream.putback(c);
         buf >> parsed_num;
@@ -103,7 +113,7 @@ Token Lexer::lisp_string(char c) {
 }
 Token Lexer::lisp_atom(char c) {
         auto buf = std::stringstream("");
-        for (; is_lisp_symbol(c) || isdigit(c); c = stream.get()) {
+        for (; is_lisp_symbol(c) || isdigit(c) || c == '.'; c = stream.get()) {
                 buf.put(c);
         }
         stream.putback(c);

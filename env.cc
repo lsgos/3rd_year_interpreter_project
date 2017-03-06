@@ -102,9 +102,7 @@ Env GlobalEnv::capture_scope() {
         return Env(*this);
 }
 
-Env::Env(GlobalEnv &g) : global(&g) {
-        scope = g.scope;
-}
+Env::Env(GlobalEnv &g) : global(&g) { scope = g.scope; }
 
 // defineing is only legal in the global scope
 void Env::def(std::string id, SExp *value) {
@@ -390,43 +388,47 @@ SExp *GlobalEnv::mk_eq() {
 
                 if (args.size() != 2) {
                         throw evaluation_error("Incorrect number of arguments "
-                                                "to eq?: expected two");
+                                               "to eq?: expected two");
                 }
                 // eval args
                 for (auto it = args.begin(); it != args.end(); ++it) {
                         (*it) = (*it)->eval(env);
                 }
-	     
+
                 bool result;
 
-	     auto arg1 = args.front();
-	     args.pop_front();
-	     auto arg2 = args.front();
+                auto arg1 = args.front();
+                args.pop_front();
+                auto arg2 = args.front();
                 auto type1 = arg1->type();
                 auto type2 = arg2->type();
                 if (type1 != type2) {
-                	result = false;
+                        result = false;
                 }
-                switch(type1) {
-                	case LispType::Number:
-                		result = (static_cast<Number*>(arg1)->val() == static_cast<Number*>(arg2)->val());
-                		break;
-                	case LispType::String:
-                		result = (static_cast<String*>(arg1)->val() == static_cast<String*>(arg2)->val());
-                		break;
-                	case LispType::Bool:
-                		result = (static_cast<Bool*>(arg1)->val() == static_cast<Bool*>(arg2)->val());
-                		break;
-                	case LispType::PrimitiveFunction:
-                		result = (arg1 == arg2);
-                		break;
-                	default:
-                		//all other types are compound: these are covered by equal?, so just compare pointer equality
-                		result = (arg1 == arg2);
+                switch (type1) {
+                case LispType::Number:
+                        result = (static_cast<Number *>(arg1)->val() ==
+                                  static_cast<Number *>(arg2)->val());
+                        break;
+                case LispType::String:
+                        result = (static_cast<String *>(arg1)->val() ==
+                                  static_cast<String *>(arg2)->val());
+                        break;
+                case LispType::Bool:
+                        result = (static_cast<Bool *>(arg1)->val() ==
+                                  static_cast<Bool *>(arg2)->val());
+                        break;
+                case LispType::PrimitiveFunction:
+                        result = (arg1 == arg2);
+                        break;
+                default:
+                        // all other types are compound: these are covered by
+                        // equal?, so just compare pointer equality
+                        result = (arg1 == arg2);
                 }
                 return env.allocate(new Bool(result));
         };
-        return heap.allocate(new PrimitiveFunction(eq,"eq"));
+        return heap.allocate(new PrimitiveFunction(eq, "eq"));
 }
 
 SExp *Heap::allocate(SExp *new_object) {
