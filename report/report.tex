@@ -216,10 +216,14 @@ into a sequence of tokens, optionally accompanied by the values of the literal t
 
 [open-bracket], [number 1], [string "hello"], [number 3], [number 6], [atom 'func'], [close-bracket], [end]
 
-In practice, the lexer will take a reference to a stream to read from, and then implement public functions to return the next token in the stream, and to read the last number
-or string encountered by the lexer. This class can then be embedded in the parser, making use of composition.
+In practice, the lexer will take a reference to a stream to read from, and then implement public functions to return the next token in the stream. In addition, the lexer 
+must store the last string and or number read: the client class (the parser) can then retrive these if it needs to. 
 
-%%This section is garbage
+The lexer transforms the string representation into a series of tokens and optional metadata. These function as a series of instructions for the parser. For example, 
+when the parser encounters the 'Number' token, it needs to retrive the number read by the lexer using the provided public function, construct a new 
+Number object using this value, and return the generic SExp pointer to the newly created value. 
+In order to handle arbitrarily nested lists, the parser's operation must be recursive. This is appropriate since the list is fundamentally a recursive data structure. In principle this could cause a segmentation fault if the user inputs a very deeply nested list. In practice this is unlikely to be a problem\footnote{On my machine, it requires 
+>20000 consecutive opening parenthesis to cause a segfault}, and using direct recursion is the simplest way to express the logic. 
 
 \subsection{Environment and Scopes} 
 At it's simplest, the environment class is simply a wrapper around a table that associated strings, the names of the symbols defined in the language, with pointers
@@ -252,7 +256,17 @@ if object A contains a pointer to object B, but object B also contains a pointer
 to reach either A or B. Since Lisp objects can contain pointers to other Lisp objects, this kind of cycle is possible, and a different strategy is neccesary. 
 
 The simplest garbage collection algorithm that is guarenteed to collect reference cycles is \textit{mark and sweep}. This algorithm has two stages: in the first, 
-memory that is reachable is marked, by starting from the roots of the memory graph and traversing through it 
+memory that is reachable is marked, by starting from the roots of the memory graph and traversing through it, marking all memory that is reached. After all memory is 
+marked, all memory in use is swept. Any memory that was not marked can be safely freed. This requires all memory locations used by the interpreter runtime to be 
+stored somewhere, so that the sweep phase can clean them up later. 
+
+The design I chose to implement this is a class that maintains a record of all memory allocated in a list context, providing a method, allocate, that can be used to wrap 
+all calls to new, storing the pointers in an appropriate structure together with a a boolean flag for the mark phase. 
+
+This is not a particularly efficient implementation of a garbage collector. It is order $N^2$ in the number of allocated objects, and also requires the operation of the 
+language to be suspended completely while garbage collection takes place, known as 'stopping the world'. Both of these characteristics can be avoided to a certain 
+extent in production garbage collectors, however this is a topic of considerable complexity in it's own right. Indeed, the continuing popularity of non-garbage collected languages like C, C++ and Rust are a testament to the fact that efficient garbage collection has still not been solved adequately for all application domains. As such, 
+the naive implementation was considered satisfactory for the scope of this project.  
 
 %%TODO typeset as algorithm: 
 procedure MARK(Pointer A):

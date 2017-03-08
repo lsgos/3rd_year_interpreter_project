@@ -12,21 +12,21 @@
 // level lexer class.
 
 class Parser {
-      public:
-        Parser(std::istream &instream) : lexer(Lexer(instream)) {}
-        SExp *read_sexp(Env &env);
+public:
+  Parser(std::istream &instream) : lexer(Lexer(instream)) {}
+  SExp *read_sexp(Env &env);
 
-      private:
-        SExp *parse(Env &env, Token token);
+private:
+  SExp *parse(Env &env, Token token);
 
-      private:
-        Lexer lexer;
-        SExp *parse_list(Env &env);
-        // this supports the backtick quote syntactic sugar: '(1 2) is
-        // transformed
-        // to
-        // (quote (1 2))
-        SExp *mk_quoted_list(Env &env);
+private:
+  Lexer lexer;
+  SExp *parse_list(Env &env);
+  // this supports the backtick quote syntactic sugar: '(1 2) is
+  // transformed
+  // to
+  // (quote (1 2))
+  SExp *mk_quoted_list(Env &env);
 };
 
 #endif
