@@ -9,36 +9,17 @@
 #include <vector>
 
 /*
-The Env manages scope resolution and definition via a symbol table, and the Heap tracks
-and garbage collects resources created by the language runtime. Primitive language
-builtins are added to the symbol table by the bind_primitives command.
+The Env manages scope resolution and definition via a symbol table. This
+functionality is essentially a wrapper around a hash table mapping strings to
+SExp pointers.
+The GlobalEnv also contains a heap object, and thus reponsible for tracking memory.
+Env objects can also be used to track memory, but they simply send it on to the
+global scope.
 
+Global Env's and heaps only really make sense if they are unique (one per runtime
+instance) so their copy constructors and assignment operators are deleted.
+In practice we can just not use them but it adds semantic clarity.
 */
-//class Env;
-//class GlobalEnv;
-//class SExp;
-//
-////The heap class is responsibe for garbage collection, maintaining a list of
-////all memory adresses in current use. The most important functions are
-////allocate, which wraps calls to new within the lisp world. All memory thus
-////allocated is mark-and-sweepable.
-//class Heap {
-//    private:
-//    std::unordered_map<SExp*, bool> objects;
-//    void reset_marks();
-//    void mark(SExp*);
-//    void sweep();
-//    public:
-//    SExp*  allocate(SExp* new_object);
-//    void collect_garbage(Env& env);
-//    Heap() {}
-//    Heap(Heap&& other) = default;
-//    // Move assignment operator.
-//    Heap& operator=(Heap&&) = default;
-//    Heap(const Heap&) = delete;
-//    Heap& operator = (const Heap&) = delete;
-//    ~Heap();
-//};
 
 class Env {
   private:
@@ -67,28 +48,12 @@ class Env {
 
 class GlobalEnv : public Env {
 private:
-
-  //TODO make a seperate scope class to handle lexical scopes, rather than using a pointer to another env?
-  //now the env is responsible for the memory there can only really be one at a time (?) or if it would
-  //work recursively it's more sensible to just have one.
-  // this will be used to store the values in a namespace
-  // possible this should be a shared_ptr: otherwise not totally sure how to
-  // ensure closures don't outlive their enclosing scopes
   Heap heap;
+  //helper functions for constructing builtin function objects
   SExp *mk_numeric_primitive(std::function<double(double acc, double x)> func,
                              std::string funcname);
 
-  SExp *mk_cons();
-  SExp *mk_quote();
-  SExp *mk_define();
-  SExp *mk_car();
-  SExp *mk_cdr();
-  SExp *mk_lambda();
-  SExp *mk_if();
-  SExp *mk_exit();
-  SExp *mk_isnull();
-  SExp *mk_numeric_equals();
-  SExp *mk_eq();
+  SExp *mk_builtin(std::function<SExp* (std::list<SExp*>, Env&)>, std::string name);
 public:
   // lookup the value with name id and put it in p if it exists
   GlobalEnv();
