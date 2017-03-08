@@ -12,7 +12,7 @@ lexer.o: lisp_exceptions.h lexer.h
 sexp.o: lisp_exceptions.h sexp.h
 parser.o: lexer.h sexp.h
 heap.o: env.h sexp.h
-env.o: sexp.h env.h
+env.o: sexp.h env.h primitives.h
 main.o: lexer.o lexer.h sexp.h sexp.o parser.h env.o
 
 format: main.cc lexer.cc lisp_exceptions.h lexer.h sexp.cc sexp.h parser.h parser.cc env.h env.cc
