@@ -26,6 +26,8 @@ class Atom;
 class List;
 class PrimitiveFunction;
 class LambdaFunction;
+class InStream;
+class OutStream;
 
 enum class LispType {
   Number,
@@ -35,6 +37,8 @@ enum class LispType {
   List,
   PrimitiveFunction,
   LambdaFunction,
+  InStream,
+  OutStream,
 };
 
 bool is_function(LispType type);
@@ -51,6 +55,8 @@ public:
   virtual void visit(List &list) = 0;
   virtual void visit(PrimitiveFunction &fn) = 0;
   virtual void visit(LambdaFunction &lambda) = 0;
+  virtual void visit(InStream &in) = 0;
+  virtual void visit(OutStream &out) = 0;
 };
 
 // abstract class representing list data
@@ -197,6 +203,36 @@ public:
   friend class Representor;
 };
 
+// Handles to input and output streams //TODO finish implementing this
+
+class InStream : public SExp {
+private:
+  std::string name;
+  bool stdin;
+
+public:
+  InStream() : stdin(true) {}
+  InStream(std::string name) : stdin(false), name(name) {}
+  LispType type() { return LispType::InStream; }
+  SExp *read();
+  SExp *eval(Env &env) override { return this; }
+  std::string get_name() { return name; }
+};
+
+class OutStream : public SExp {
+private:
+  std::string name;
+  bool stdout;
+
+public:
+  OutStream() : stdout(true) {}
+  OutStream(std::string name) : stdout(false), name(name) {}
+  LispType type() { return LispType::OutStream; }
+  SExp *write(std::string, Env &env);
+  SExp *eval(Env &env) override { return this; }
+  std::string get_name() { return name; }
+};
+
 // visitor class, writes a representation of an s-expression to a stream
 class Representor : public SExpVisitor {
 private:
@@ -211,6 +247,8 @@ public:
   void visit(List &list);
   void visit(PrimitiveFunction &fn);
   void visit(LambdaFunction &lambda);
+  void visit(InStream &in);
+  void visit(OutStream &out);
 };
 
 // implement the strea insertion operator for Sexps using the representor class

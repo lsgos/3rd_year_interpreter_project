@@ -4,12 +4,13 @@ This is fairly simple as all the heavy lifting is done in the classes.
 */
 #include <iostream>
 
-// TODO: check if this is the right way to do modules correctly
 #include "env.h"
 #include "lexer.h"
 #include "lisp_exceptions.h"
 #include "parser.h"
 #include "sexp.h"
+
+// TODO attempt to remove all duplicated includes from the header files
 
 int main() {
 
@@ -22,14 +23,15 @@ int main() {
         auto sexp = p.read_sexp(env); // should we use the stream extraction
         // operator here? maybe not, since we want
         // to catch exceptions thrown by the
-        // parser...
+        // parser, and canonically the stream extractor should set the failbit
+        // rather than throw
         sexp = sexp->eval(env);
         std::cout << *sexp << std::endl;
         env.collect_garbage();
       } catch (exit_interpreter &e) {
         break;
       } catch (std::exception &e) {
-        // todo: make sure EOF kills the interpreter as
+        // TODO: make sure EOF kills the interpreter as
         // well
         std::cout << "Exception: " << e.what() << std::endl;
         std::cin.clear();

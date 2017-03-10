@@ -39,6 +39,15 @@ private:
   std::string msg;
 };
 
+class io_error : public std::exception {
+public:
+  virtual const char *what() const throw() { return msg.c_str(); }
+  io_error(std::string msg = "io error") : msg(msg) {}
+
+private:
+  std::string msg;
+};
+
 class exit_interpreter : public std::exception {
   virtual const char *what() const throw() { return msg.c_str(); }
 

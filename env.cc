@@ -1,7 +1,7 @@
 
 #include "env.h"
-#include "sexp.h"
 #include "primitives.h"
+#include "sexp.h"
 // for now, just implement numeric primitives
 
 // TODO try to come up with a way to abstract the creation of these things? a
@@ -50,7 +50,10 @@ SExp *GlobalEnv::mk_numeric_primitive(
   return heap.allocate(new PrimitiveFunction(fn, funcname));
 }
 
-SExp* GlobalEnv::mk_builtin(std::function<SExp*(std::list<SExp*>, Env&)> fn, std::string funcname) {
+// takes a function and converts it into a PrimitiveFunction object containing
+// it
+SExp *GlobalEnv::mk_builtin(std::function<SExp *(std::list<SExp *>, Env &)> fn,
+                            std::string funcname) {
   return heap.allocate(new PrimitiveFunction(fn, funcname));
 }
 
@@ -80,17 +83,19 @@ void GlobalEnv::bind_primitives() {
                [](double acc, double x) -> double { return acc * x; }, "*"));
   def("/", mk_numeric_primitive(
                [](double acc, double x) -> double { return acc / x; }, "/"));
-  def("cons", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_cons), "cons"));
-  def("car", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_car), "car"));
-  def("quote", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_quote), "quote"));
-  def("define", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_define), "define"));
-  def("lambda", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_lambda), "lambda"));
-  def("cdr", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_cdr), "cdr"));
-  def("if", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_if), "if"));
-  def("null?", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_isnull), "null?"));
-  def("exit", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_exit), "exit"));
-  def("=", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_numeric_eq), "="));
-  def("eq?", mk_builtin(std::function<SExp* (std::list<SExp*>, Env& env)>(primitive_eq), "eq?"));
+  def("cons", mk_builtin(primitive_cons, "cons"));
+  def("car", mk_builtin(primitive_car, "car"));
+  def("quote", mk_builtin(primitive_quote, "quote"));
+  def("define", mk_builtin(primitive_define, "define"));
+  def("lambda", mk_builtin(primitive_lambda, "lambda"));
+  def("cdr", mk_builtin(primitive_cdr, "cdr"));
+  def("if", mk_builtin(primitive_if, "if"));
+  def("null?", mk_builtin(primitive_isnull, "null?"));
+  def("exit", mk_builtin(primitive_exit, "exit"));
+  def("=", mk_builtin(primitive_numeric_eq, "="));
+  def("eq?", mk_builtin(primitive_eq, "eq?"));
+  def("eval", mk_builtin(primitive_eval, "eval"));
+  def("number?", mk_builtin(primitive_is_number, "number?"));
   return;
 }
 

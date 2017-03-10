@@ -1,7 +1,3 @@
-/*
-This is where the builtin language primitives are defined, such as car,
-cdr, etc. It's just a
-*/
 #include "primitives.h"
 
 SExp* primitive_cons(std::list<SExp*> args, Env& env) {
@@ -257,4 +253,28 @@ SExp* primitive_eq (std::list<SExp *> args, Env &env) {
       result = (arg1 == arg2);
     }
     return env.allocate(new Bool(result));
+}
+
+SExp* primitive_eval      (std::list<SExp *> args, Env &env) {
+	//evaluate the argument as a lisp expression 
+	
+	if (args.size() != 1) { 
+		throw evaluation_error("Incorrect number of arguments in function eval: expected 1");
+	}
+	//evaluate the value of the argument as as a lisp expression. 
+	SExp* exp = args.front();
+	exp = exp -> eval(env);
+	return exp->eval(env);
+}
+
+SExp* primitive_is_number    (std::list<SExp *> args, Env &env) {
+	//test if the input is a number 
+	if (args.size()!= 1) {
+		throw evaluation_error("Incorrect number of arguments in function number?");
+	}
+	bool result = false;
+	if (args.front()->type() == LispType::Number){
+		result = true;
+	}
+	return env.allocate(new Bool(result));
 }

@@ -38,7 +38,6 @@ class Env {
     virtual SExp* allocate(SExp* obj);
     SExp *lookup(std::string id);
     void def(std::string id, SExp* );
-    //TODO finish this crud
 
     Env(GlobalEnv& g);
     virtual ~Env() {}

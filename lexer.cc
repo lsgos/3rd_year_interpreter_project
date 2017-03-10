@@ -48,6 +48,7 @@ void Lexer::consume_spaces() {
 void Lexer::consume_comment() {
   for (char c = stream.get(); c != newline; c = stream.get())
     ;
+  ++linenum;
   return;
 }
 Token Lexer::lisp_number(char c) {
@@ -94,10 +95,35 @@ Token Lexer::lisp_number(char c) {
   return Token::num;
 }
 Token Lexer::lisp_string(char c) {
-  // c == "
 
   auto buf = std::stringstream("");
   for (c = stream.get(); c != '\"'; c = stream.get()) {
+
+    if (c == '\\') {
+      // allow escaped special characters, like ", \n, etc
+      char esc = stream.get();
+      switch (esc) {
+      case '\"':
+        buf.put(esc);
+        break;
+      case 'n':
+        buf.put('\n');
+        break;
+      case 't':
+        buf.put('\t');
+        break;
+      case '\'':
+        buf.put(esc);
+        break;
+      case '\\':
+        buf.put('\\');
+        break;
+      default:
+        throw parser_exception(linenum,
+                               "Unrecognised escape sequence in parser");
+      }
+      continue;
+    }
     if (c == EOF) {
       throw parser_exception(linenum, "Reached unexpected "
                                       "end-of-file: expected "

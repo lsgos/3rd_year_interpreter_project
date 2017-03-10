@@ -3,16 +3,24 @@
 
 #include "env.h"
 #include "sexp.h"
-SExp* primitive_cons(std::list<SExp*> args, Env& env);
-SExp* primitive_car(std::list<SExp*> args, Env& env);
-SExp* primitive_isnull(std::list<SExp *> args, Env &env);
-SExp* primitive_cdr (std::list<SExp *> args, Env &env);
-SExp* primitive_quote(std::list<SExp *> args, Env &env);
-SExp* primitive_define (std::list<SExp *> args, Env &env);
-SExp* primitive_lambda (std::list<SExp *> args, Env &env);
-SExp* primitive_if (std::list<SExp *> args, Env &env);
-SExp* primitive_exit (std::list<SExp *> args, Env &env);
-SExp* primitive_numeric_eq (std::list<SExp *> args, Env &env);
-SExp* primitive_eq (std::list<SExp *> args, Env &env);
 
+/*
+This is where most of the language builtin functions and special forms are defined.
+*/ 
+
+//All these functions have essentially the same signitures: is there a way to
+//express this?
+SExp* primitive_cons        (std::list<SExp *> args, Env& env);
+SExp* primitive_car         (std::list<SExp *> args, Env& env);
+SExp* primitive_isnull      (std::list<SExp *> args, Env &env);
+SExp* primitive_cdr         (std::list<SExp *> args, Env &env);
+SExp* primitive_quote       (std::list<SExp *> args, Env &env);
+SExp* primitive_define      (std::list<SExp *> args, Env &env);
+SExp* primitive_lambda      (std::list<SExp *> args, Env &env);
+SExp* primitive_if          (std::list<SExp *> args, Env &env);
+SExp* primitive_exit        (std::list<SExp *> args, Env &env);
+SExp* primitive_numeric_eq  (std::list<SExp *> args, Env &env);
+SExp* primitive_eq          (std::list<SExp *> args, Env &env);
+SExp* primitive_eval      (std::list<SExp *> args, Env &env);
+SExp* primitive_is_number    (std::list<SExp *> args, Env &env);
 #endif

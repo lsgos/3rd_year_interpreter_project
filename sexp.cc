@@ -1,6 +1,7 @@
 #include "sexp.h"
 #include "env.h"
 #include "lisp_exceptions.h"
+#include <fstream>
 #include <list>
 #include <memory>
 #include <sstream>
@@ -76,6 +77,24 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   return result;
 }
 
+// write to the file object handled by outstream
+SExp *OutStream::write(std::string str, Env &env) {
+  if (stdout) {
+    std::cout << str;
+  } else {
+    std::ofstream file;
+    file.open(name);
+    if (file.good()) {
+      file << str;
+    } else {
+      throw io_error("Invalid write to file " + name);
+    }
+    file.close();
+  }
+  return env.allocate(new List()); // TODO add a global null to the global scope
+                                   // rather than  allocating each time?
+}
+
 void Representor::visit(Number &number) { stream << number.val(); }
 void Representor::visit(String &string) {
   stream << "\"";
@@ -121,7 +140,15 @@ void Representor::visit(LambdaFunction &lambda) {
   stream << ">";
 }
 
-// thos is probably how the representor class will get used
+void Representor::visit(InStream &in) {
+  stream << "<InStream " << in.get_name() << ">";
+}
+
+void Representor::visit(OutStream &out) {
+  stream << "OutStream" << out.get_name() << ">";
+}
+
+// this is probably how the representor class will get used
 std::ostream &operator<<(std::ostream &os, SExp &sexp) {
   auto repr = Representor(os);
   sexp.exec(repr);
