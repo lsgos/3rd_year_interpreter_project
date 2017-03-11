@@ -75,6 +75,10 @@ SExp *Env::lookup(std::string id) {
 }
 
 void GlobalEnv::bind_primitives() {
+  // constant null
+  def("null", heap.allocate(new List()));
+
+  // primitive functions
   def("+", mk_numeric_primitive(
                [](double acc, double x) -> double { return acc + x; }, "+"));
   def("-", mk_numeric_primitive(
@@ -96,6 +100,12 @@ void GlobalEnv::bind_primitives() {
   def("eq?", mk_builtin(primitive_eq, "eq?"));
   def("eval", mk_builtin(primitive_eval, "eval"));
   def("number?", mk_builtin(primitive_is_number, "number?"));
+  def("open-output-port",
+      mk_builtin(primitive_open_output_port, "open-output-port"));
+  def("display", mk_builtin(primitive_display, "display"));
+
+  // bind standard output and input to lisp input and output objects
+  def("std-output-port", heap.allocate(new OutPort()));
   return;
 }
 

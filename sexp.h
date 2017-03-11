@@ -2,6 +2,7 @@
 #define SEXP_H
 
 #include "env.h"
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -26,8 +27,8 @@ class Atom;
 class List;
 class PrimitiveFunction;
 class LambdaFunction;
-class InStream;
-class OutStream;
+class InPort;
+class OutPort;
 
 enum class LispType {
   Number,
@@ -37,8 +38,8 @@ enum class LispType {
   List,
   PrimitiveFunction,
   LambdaFunction,
-  InStream,
-  OutStream,
+  InPort,
+  OutPort,
 };
 
 bool is_function(LispType type);
@@ -55,8 +56,8 @@ public:
   virtual void visit(List &list) = 0;
   virtual void visit(PrimitiveFunction &fn) = 0;
   virtual void visit(LambdaFunction &lambda) = 0;
-  virtual void visit(InStream &in) = 0;
-  virtual void visit(OutStream &out) = 0;
+  virtual void visit(InPort &in) = 0;
+  virtual void visit(OutPort &out) = 0;
 };
 
 // abstract class representing list data
@@ -205,32 +206,36 @@ public:
 
 // Handles to input and output streams //TODO finish implementing this
 
-class InStream : public SExp {
+class InPort : public SExp {
 private:
   std::string name;
   bool stdin;
 
 public:
-  InStream() : stdin(true) {}
-  InStream(std::string name) : stdin(false), name(name) {}
-  LispType type() { return LispType::InStream; }
+  InPort() : stdin(true) {}
+  InPort(std::string name);
+  LispType type() { return LispType::InPort; }
   SExp *read();
   SExp *eval(Env &env) override { return this; }
   std::string get_name() { return name; }
 };
 
-class OutStream : public SExp {
+class OutPort : public SExp {
 private:
+  std::ofstream file;
+  bool stdoutput;
   std::string name;
-  bool stdout;
 
 public:
-  OutStream() : stdout(true) {}
-  OutStream(std::string name) : stdout(false), name(name) {}
-  LispType type() { return LispType::OutStream; }
+  OutPort() : stdoutput(true), name("stdout") {}
+  OutPort(std::string name);
+  LispType type() const override { return LispType::OutPort; }
   SExp *write(std::string, Env &env);
   SExp *eval(Env &env) override { return this; }
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
   std::string get_name() { return name; }
+  void close();
+  ~OutPort();
 };
 
 // visitor class, writes a representation of an s-expression to a stream
@@ -247,8 +252,8 @@ public:
   void visit(List &list);
   void visit(PrimitiveFunction &fn);
   void visit(LambdaFunction &lambda);
-  void visit(InStream &in);
-  void visit(OutStream &out);
+  void visit(InPort &in);
+  void visit(OutPort &out);
 };
 
 // implement the strea insertion operator for Sexps using the representor class

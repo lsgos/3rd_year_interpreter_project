@@ -77,22 +77,36 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   return result;
 }
 
+OutPort::OutPort(std::string name) : stdoutput(false), name(name) {
+  // we want the file to be open as long as this object exists, so the program
+  // maintains
+  // control over thr resource
+  file.open(name);
+  if (!file.is_open()) {
+    throw io_error("Cannot open file" + name);
+  }
+}
+
+OutPort::~OutPort() { this->close(); }
+
+void OutPort::close() {
+  if (file.is_open()) {
+    file.close();
+  }
+}
 // write to the file object handled by outstream
-SExp *OutStream::write(std::string str, Env &env) {
-  if (stdout) {
+SExp *OutPort::write(std::string str, Env &env) {
+  if (stdoutput) {
     std::cout << str;
   } else {
-    std::ofstream file;
-    file.open(name);
     if (file.good()) {
       file << str;
     } else {
       throw io_error("Invalid write to file " + name);
     }
-    file.close();
   }
-  return env.allocate(new List()); // TODO add a global null to the global scope
-                                   // rather than  allocating each time?
+  return env.lookup("null"); // TODO add a global null to the global scope
+                             // rather than  allocating each time?
 }
 
 void Representor::visit(Number &number) { stream << number.val(); }
@@ -140,12 +154,12 @@ void Representor::visit(LambdaFunction &lambda) {
   stream << ">";
 }
 
-void Representor::visit(InStream &in) {
-  stream << "<InStream " << in.get_name() << ">";
+void Representor::visit(InPort &in) {
+  stream << "<InPort " << in.get_name() << ">";
 }
 
-void Representor::visit(OutStream &out) {
-  stream << "OutStream" << out.get_name() << ">";
+void Representor::visit(OutPort &out) {
+  stream << "< output-port" << out.get_name() << ">";
 }
 
 // this is probably how the representor class will get used

@@ -278,3 +278,48 @@ SExp* primitive_is_number    (std::list<SExp *> args, Env &env) {
 	}
 	return env.allocate(new Bool(result));
 }
+
+SExp* primitive_open_output_port(std::list<SExp*> args, Env& env) {
+	if (args.size() != 1) {
+		throw evaluation_error("Invalid number of arguments in function open-output-port");
+	}
+	SExp* fname = args.front()->eval(env);
+	if (fname->type() != LispType::String) {
+		throw evaluation_error("Invalid argument to function open-output-port: expected string");
+	}
+	std::string name = static_cast<String*>(fname) -> val();
+
+	try {
+		return env.allocate(new OutPort(name));
+	} catch (io_error e) {
+		//use booleans to signal errors to the calling program, since we aren't going to implement exception catching 
+		return env.allocate(new Bool(false));
+	}
+}
+
+SExp* primitive_display(std::list<SExp*> args, Env& env) {
+	SExp* msg, *output_port;
+	switch(args.size()) {
+		case 1:
+			msg = args.front() ->eval(env); 
+			output_port = env.lookup("std-output-port");
+			break;
+		case 2:
+			msg = args.front()->eval(env); ;
+			args.pop_front();
+			output_port = args.front()->eval(env); 
+			break;
+		default:
+			throw evaluation_error("Invalid number of arguments to builtin define: expected 1 or 2");
+	}
+	if (output_port->type() != LispType::OutPort) {
+		std::cout << int(output_port->type());
+		throw evaluation_error("Cannot write to a non-port type: expected output-port");
+	}
+	//write the string representation of the object to the output port 
+	std::stringstream buf;
+	buf << *msg; 
+	static_cast<OutPort*>(output_port) -> write (buf.str(), env );
+	return env.lookup("null");
+}
+		
