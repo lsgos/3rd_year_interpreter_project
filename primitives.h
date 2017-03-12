@@ -24,6 +24,7 @@ SExp* primitive_eq          (std::list<SExp *> args, Env &env);
 SExp* primitive_eval      (std::list<SExp *> args, Env &env);
 SExp* primitive_is_number    (std::list<SExp *> args, Env &env);
 SExp* primitive_open_output_port(std::list<SExp*> args, Env& env);
+SExp* primitive_close_output_port(std::list<SExp*> args, Env& env);
 SExp* primitive_display (std::list<SExp*> args, Env& env);
 
 #endif

@@ -240,7 +240,7 @@ public:
 
 // visitor class, writes a representation of an s-expression to a stream
 class Representor : public SExpVisitor {
-private:
+protected:
   std::ostream &stream;
 
 public:
@@ -256,7 +256,17 @@ public:
   void visit(OutPort &out);
 };
 
-// implement the strea insertion operator for Sexps using the representor class
+// implement the stream insertion operator for Sexps using the representor class
 std::ostream &operator<<(std::ostream &os, SExp &sexp);
 
+// There should be a different printing behaviour for strings only when they are
+// printed
+// as formatted output: they should be displayed literally rather than enclosed
+// in quotes.
+// Everything else can be inherited from the basic representor.
+class DisplayRepresentor : public Representor {
+public:
+  DisplayRepresentor(std::ostream &os) : Representor(os) {}
+  void visit(String &string);
+};
 #endif

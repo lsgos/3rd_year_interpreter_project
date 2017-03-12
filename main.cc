@@ -19,14 +19,14 @@ int main() {
     GlobalEnv env = GlobalEnv();
     while (true) {
       try {
-        std::cout << " >>  ";
+        std::cout << " <<=  ";
         auto sexp = p.read_sexp(env); // should we use the stream extraction
         // operator here? maybe not, since we want
         // to catch exceptions thrown by the
         // parser, and canonically the stream extractor should set the failbit
         // rather than throw
         sexp = sexp->eval(env);
-        std::cout << *sexp << std::endl;
+        std::cout << " --> " << *sexp << std::endl;
         env.collect_garbage();
       } catch (exit_interpreter &e) {
         break;

@@ -318,8 +318,21 @@ SExp* primitive_display(std::list<SExp*> args, Env& env) {
 	}
 	//write the string representation of the object to the output port 
 	std::stringstream buf;
-	buf << *msg; 
+	auto repr = DisplayRepresentor(buf);
+	msg->exec(repr);
+	
 	static_cast<OutPort*>(output_port) -> write (buf.str(), env );
 	return env.lookup("null");
 }
-		
+
+SExp* primitive_close_output_port(std::list<SExp*> args, Env& env) {
+	if (args.size() != 1) { 
+		throw evaluation_error("Incorrect number of arguments in function close-output-port");
+	}
+	SExp * arg = args.front() -> eval(env);
+	if (arg->type() != LispType::OutPort) { 
+		throw evaluation_error("Invalid call of close-outport-port on non output port type");
+	}
+	static_cast<OutPort*>(arg) -> close();
+	return env.lookup("null");
+}	

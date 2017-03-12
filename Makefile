@@ -16,8 +16,8 @@ env.o: sexp.h env.h primitives.h
 primitives.o: sexp.h env.h
 main.o: lexer.o lexer.h sexp.h sexp.o parser.h env.o
 
-format: main.cc lexer.cc lisp_exceptions.h lexer.h sexp.cc sexp.h parser.h parser.cc env.h env.cc
-	clang-format -style="llvm" -i main.cc lexer.cc lisp_exceptions.h lexer.h sexp.cc sexp.h parser.h parser.cc env.cc
+format: main.cc lexer.cc lisp_exceptions.h lexer.h sexp.cc sexp.h parser.h parser.cc env.h env.cc heap.h heap.cc
+	clang-format -style="llvm" -i main.cc lexer.cc lisp_exceptions.h lexer.h sexp.cc sexp.h parser.h parser.cc env.cc heap.h heap.cc
 clean:
 	rm *.o main
 valgrind: debug

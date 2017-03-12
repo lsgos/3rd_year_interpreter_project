@@ -103,7 +103,8 @@ void GlobalEnv::bind_primitives() {
   def("open-output-port",
       mk_builtin(primitive_open_output_port, "open-output-port"));
   def("display", mk_builtin(primitive_display, "display"));
-
+  def("close-output-port",
+      mk_builtin(primitive_close_output_port, "close-output-port"));
   // bind standard output and input to lisp input and output objects
   def("std-output-port", heap.allocate(new OutPort()));
   return;

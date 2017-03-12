@@ -99,11 +99,11 @@ SExp *OutPort::write(std::string str, Env &env) {
   if (stdoutput) {
     std::cout << str;
   } else {
-    if (file.good()) {
-      file << str;
-    } else {
+    if (!file.good())
       throw io_error("Invalid write to file " + name);
-    }
+    if (!file.is_open())
+      throw io_error("Invalid write to closed file " + name);
+    file << str;
   }
   return env.lookup("null"); // TODO add a global null to the global scope
                              // rather than  allocating each time?
@@ -159,8 +159,11 @@ void Representor::visit(InPort &in) {
 }
 
 void Representor::visit(OutPort &out) {
-  stream << "< output-port" << out.get_name() << ">";
+  stream << "< output-port " << out.get_name() << ">";
 }
+
+// specialised version for printing the literal content of strings
+void DisplayRepresentor::visit(String &string) { stream << string.val(); }
 
 // this is probably how the representor class will get used
 std::ostream &operator<<(std::ostream &os, SExp &sexp) {
