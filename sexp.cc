@@ -33,7 +33,7 @@ SExp *List::eval(Env &env) {
   SExp *head = elems
                    .front()     // first element in the list
                    ->eval(env); // evaluate the expression
-  auto args = elems;            // copy elems to avoid mutating the list
+  auto args = elems;
   args.pop_front();
 
   if (!is_function(head->type())) {
@@ -58,7 +58,7 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   }
   auto f_env = closure; // create a copy of the closure to use when
                         // evaluating the body
-  // arg list matches message: go through the list of provided argument,
+  // arg list matches message: go through the list of provided arguments,
   // evaluating each one and binding the result to the closure.
   auto arg = args.begin();
   for (auto par = params.begin(); par != params.end(); ++par, ++arg) {

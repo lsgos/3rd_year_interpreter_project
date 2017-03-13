@@ -20,9 +20,8 @@ SExp *GlobalEnv::mk_numeric_primitive(
       throw evaluation_error("Incorrect number of arguments in function " +
                              funcname);
     }
-    for (auto it = args.begin(); it != args.end(); ++it) {
-      (*it) = (*it)->eval(env);
-    }
+    std::for_each(args.begin(), args.end(),
+                  [&](SExp *&a) { a = a->eval(env); });
     double acc;
     for (auto it = args.begin(); it != args.end(); ++it) {
       if ((*it)->type() != LispType::Number) {
@@ -103,10 +102,16 @@ void GlobalEnv::bind_primitives() {
   def("open-output-port",
       mk_builtin(primitive_open_output_port, "open-output-port"));
   def("display", mk_builtin(primitive_display, "display"));
+  def("displayln", mk_builtin(primitive_displayln, "displayln"));
   def("close-output-port",
       mk_builtin(primitive_close_output_port, "close-output-port"));
   // bind standard output and input to lisp input and output objects
   def("std-output-port", heap.allocate(new OutPort()));
+  def("%", mk_builtin(primitive_modulo, "%"));
+  def("not", mk_builtin(primitive_not, "not"));
+  def("map", mk_builtin(primitive_map, "map"));
+  def("filter", mk_builtin(primitive_filter, "filter"));
+  def("fold", mk_builtin(primitive_fold, "fold"));
   return;
 }
 

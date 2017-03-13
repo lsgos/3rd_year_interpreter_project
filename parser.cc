@@ -6,7 +6,13 @@ no other part of the runtime needs to access this, it can be entirely
 encapsulated as a private member of the parser class.
 */
 
-SExp *Parser::read_sexp(Env &env) { return parse(env, lexer.get_token()); }
+SExp *Parser::read_sexp(Env &env) {
+  auto token = lexer.get_token();
+  if (token == Token::eof) {
+    return nullptr;
+  }
+  return parse(env, token);
+}
 SExp *Parser::parse(Env &env, Token token) {
   switch (token) {
   case Token::open_bracket:
