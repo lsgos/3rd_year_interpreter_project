@@ -112,6 +112,7 @@ void GlobalEnv::bind_primitives() {
   def("map", mk_builtin(primitive_map, "map"));
   def("filter", mk_builtin(primitive_filter, "filter"));
   def("fold", mk_builtin(primitive_fold, "fold"));
+  def("list", mk_builtin(primitive_list, "list"));
   return;
 }
 

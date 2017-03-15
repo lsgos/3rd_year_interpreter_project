@@ -268,5 +268,6 @@ class DisplayRepresentor : public Representor {
 public:
   DisplayRepresentor(std::ostream &os) : Representor(os) {}
   void visit(String &string);
+  void visit(List &list);
 };
 #endif

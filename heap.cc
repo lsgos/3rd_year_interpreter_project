@@ -48,15 +48,18 @@ void Heap::mark(SExp *addr) {
         "This shouldn't happen: encountered unmanaged address");
   }
   // mark memory as used
+  if (entry->second) {
+    // if this is true, we have already marked this object, and have no need
+    // to mark it again: return early to avoid infinite cycles
+    return;
+  }
   entry->second = true;
   // std::cout << "Marked " << entry->first << " as in use" << std::endl;
   auto expr_type = entry->first->type();
   // Lists and functions can contain references to other objects: we need
   // to
   // recursively trace out their tree.
-  // can we implement this as a visitor? might be slightly neater. Or is
-  // it
-  // unnessarily complicated?
+
   if (expr_type == LispType::List) {
     auto list = static_cast<List *>(addr);
     for (auto it = list->elems.begin(); it != list->elems.end(); ++it) {

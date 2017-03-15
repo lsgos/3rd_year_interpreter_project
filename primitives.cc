@@ -4,7 +4,10 @@ SExp *primitive_cons(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments in primitive cons");
   }
+  // evaluate argument list
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
+  // SExp*& is a reference to an SExp pointer
+
   SExp *car = args.front();
   args.pop_front();
   SExp *cdr = args.front();
@@ -131,7 +134,7 @@ SExp *primitive_lambda(std::list<SExp *> args, Env &env) {
         param_list.push_back(at->get_identifier());
       } else {
         throw evaluation_error("Error in arguments to lambda: "
-                               "excepted "
+                               "expected "
                                "identifier or list of "
                                "identifiers");
       }
@@ -301,7 +304,6 @@ SExp *primitive_display(std::list<SExp *> args, Env &env) {
     break;
   case 2:
     msg = args.front()->eval(env);
-    ;
     args.pop_front();
     output_port = args.front()->eval(env);
     break;
@@ -400,6 +402,18 @@ SExp *primitive_not(std::list<SExp *> args, Env &env) {
 // three functions, and by utilitising the c++ algorithms we can avoid using
 // explicit recursion in our language to a certain extent
 
+// this is a helper function for the three higher order functions below: they
+// need to
+// pass in quoted variables as though they were defined in lisp (where they woud
+// pass in
+// atoms that would get evaled in the functions scope.) We simulate this by
+// constructing a
+// new quote variable
+
+SExp *quote_var(SExp *var, Env &env) {
+  return env.allocate(new List(std::list<SExp *>{env.lookup("quote"), var}));
+}
+
 // (map f xs) where xs = (a b c d ...) --> ((f a) (f b) (f c) (f d) ...)
 SExp *primitive_map(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
@@ -423,7 +437,7 @@ SExp *primitive_map(std::list<SExp *> args, Env &env) {
   std::list<SExp *> elements = list->elems;
   // apply the function func to every element in the list
   std::for_each(elements.begin(), elements.end(), [&func, &env](SExp *&a) {
-    a = func->call(std::list<SExp *>{a}, env);
+    a = func->call(std::list<SExp *>{quote_var(a, env)}, env);
   });
   return env.allocate(new List(elements));
 }
@@ -456,12 +470,13 @@ SExp *primitive_filter(std::list<SExp *> args, Env &env) {
   // that does not pass the predicate, requiring the manual erasing of those
   // elements
 
-  elements.erase(std::remove_if(elements.begin(), elements.end(),
-                                [&pred, &env](SExp *&a) -> bool {
-                                  return !is_true(
-                                      pred->call(std::list<SExp *>{a}, env));
-                                }),
-                 elements.end());
+  elements.erase(
+      std::remove_if(elements.begin(), elements.end(),
+                     [&pred, &env](SExp *&a) -> bool {
+                       return !is_true(pred->call(
+                           std::list<SExp *>{quote_var(a, env)}, env));
+                     }),
+      elements.end());
 
   return env.allocate(new List(elements));
 }
@@ -495,11 +510,18 @@ SExp *primitive_fold(std::list<SExp *> args, Env &env) {
   std::list<SExp *> elements = list->elems;
 
   // perform a fold over the elements
-  SExp *result =
-      std::accumulate(elements.begin(), elements.end(), init,
-                      [&env, &func](SExp *acc, SExp *elem) -> SExp * {
-                        return func->call(std::list<SExp *>{acc, elem}, env);
-                      });
+  SExp *result = std::accumulate(
+      elements.begin(), elements.end(), init,
+      [&env, &func](SExp *acc, SExp *elem) -> SExp * {
+        return func->call(
+            std::list<SExp *>{quote_var(acc, env), quote_var(elem, env)}, env);
+      });
 
   return result;
+}
+
+SExp *primitive_list(std::list<SExp *> args, Env &env) {
+  // construct a list from elems: this is very simple!
+  std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
+  return env.allocate(new List(args));
 }

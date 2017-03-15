@@ -165,6 +165,12 @@ void Representor::visit(OutPort &out) {
 // specialised version for printing the literal content of strings
 void DisplayRepresentor::visit(String &string) { stream << string.val(); }
 
+void DisplayRepresentor::visit(List &list) {
+  // should display elements of a list as a normal list, not a printed string
+  auto repr = Representor(stream);
+  list.exec(repr);
+}
+
 // this is probably how the representor class will get used
 std::ostream &operator<<(std::ostream &os, SExp &sexp) {
   auto repr = Representor(os);

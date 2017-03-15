@@ -44,4 +44,5 @@ SExp *primitive_displayln(std::list<SExp *> args, Env &env);
 SExp *primitive_map(std::list<SExp *> args, Env &env);
 SExp *primitive_filter(std::list<SExp *> args, Env &env);
 SExp *primitive_fold(std::list<SExp *> args, Env &env);
+SExp *primitive_list(std::list<SExp *> args, Env &env);
 #endif
