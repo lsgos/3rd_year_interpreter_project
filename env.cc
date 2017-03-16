@@ -74,6 +74,7 @@ SExp *Env::lookup(std::string id) {
 }
 
 void GlobalEnv::bind_primitives() {
+  using namespace primitive;
   // constant null
   def("null", heap.allocate(new List()));
 
@@ -86,33 +87,31 @@ void GlobalEnv::bind_primitives() {
                [](double acc, double x) -> double { return acc * x; }, "*"));
   def("/", mk_numeric_primitive(
                [](double acc, double x) -> double { return acc / x; }, "/"));
-  def("cons", mk_builtin(primitive_cons, "cons"));
-  def("car", mk_builtin(primitive_car, "car"));
-  def("quote", mk_builtin(primitive_quote, "quote"));
-  def("define", mk_builtin(primitive_define, "define"));
-  def("lambda", mk_builtin(primitive_lambda, "lambda"));
-  def("cdr", mk_builtin(primitive_cdr, "cdr"));
-  def("if", mk_builtin(primitive_if, "if"));
-  def("null?", mk_builtin(primitive_isnull, "null?"));
-  def("exit", mk_builtin(primitive_exit, "exit"));
-  def("=", mk_builtin(primitive_numeric_eq, "="));
-  def("eq?", mk_builtin(primitive_eq, "eq?"));
-  def("eval", mk_builtin(primitive_eval, "eval"));
-  def("number?", mk_builtin(primitive_is_number, "number?"));
-  def("open-output-port",
-      mk_builtin(primitive_open_output_port, "open-output-port"));
-  def("display", mk_builtin(primitive_display, "display"));
-  def("displayln", mk_builtin(primitive_displayln, "displayln"));
-  def("close-output-port",
-      mk_builtin(primitive_close_output_port, "close-output-port"));
+  def("cons", mk_builtin(cons, "cons"));
+  def("car", mk_builtin(car, "car"));
+  def("quote", mk_builtin(quote, "quote"));
+  def("define", mk_builtin(define, "define"));
+  def("lambda", mk_builtin(lambda, "lambda"));
+  def("cdr", mk_builtin(cdr, "cdr"));
+  def("if", mk_builtin(if_stmt, "if"));
+  def("null?", mk_builtin(isnull, "null?"));
+  def("exit", mk_builtin(exit_stmt, "exit"));
+  def("=", mk_builtin(numeric_eq, "="));
+  def("eq?", mk_builtin(eq, "eq?"));
+  def("eval", mk_builtin(eval, "eval"));
+  def("number?", mk_builtin(is_number, "number?"));
+  def("open-output-port", mk_builtin(open_output_port, "open-output-port"));
+  def("display", mk_builtin(display, "display"));
+  def("displayln", mk_builtin(displayln, "displayln"));
+  def("close-output-port", mk_builtin(close_output_port, "close-output-port"));
   // bind standard output and input to lisp input and output objects
   def("std-output-port", heap.allocate(new OutPort()));
-  def("%", mk_builtin(primitive_modulo, "%"));
-  def("not", mk_builtin(primitive_not, "not"));
-  def("map", mk_builtin(primitive_map, "map"));
-  def("filter", mk_builtin(primitive_filter, "filter"));
-  def("fold", mk_builtin(primitive_fold, "fold"));
-  def("list", mk_builtin(primitive_list, "list"));
+  def("%", mk_builtin(modulo, "%"));
+  def("not", mk_builtin(not_stmt, "not"));
+  def("map", mk_builtin(map, "map"));
+  def("filter", mk_builtin(filter, "filter"));
+  def("fold", mk_builtin(fold, "fold"));
+  def("list", mk_builtin(list, "list"));
   return;
 }
 

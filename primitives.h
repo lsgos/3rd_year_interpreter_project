@@ -22,27 +22,30 @@ programs.
 
 // All these functions have essentially the same signitures: is there a way to
 // express this?
-SExp *primitive_cons(std::list<SExp *> args, Env &env);
-SExp *primitive_car(std::list<SExp *> args, Env &env);
-SExp *primitive_isnull(std::list<SExp *> args, Env &env);
-SExp *primitive_cdr(std::list<SExp *> args, Env &env);
-SExp *primitive_quote(std::list<SExp *> args, Env &env);
-SExp *primitive_define(std::list<SExp *> args, Env &env);
-SExp *primitive_lambda(std::list<SExp *> args, Env &env);
-SExp *primitive_if(std::list<SExp *> args, Env &env);
-SExp *primitive_not(std::list<SExp *> args, Env &env);
-SExp *primitive_exit(std::list<SExp *> args, Env &env);
-SExp *primitive_numeric_eq(std::list<SExp *> args, Env &env);
-SExp *primitive_eq(std::list<SExp *> args, Env &env);
-SExp *primitive_modulo(std::list<SExp *> args, Env &env);
-SExp *primitive_eval(std::list<SExp *> args, Env &env);
-SExp *primitive_is_number(std::list<SExp *> args, Env &env);
-SExp *primitive_open_output_port(std::list<SExp *> args, Env &env);
-SExp *primitive_close_output_port(std::list<SExp *> args, Env &env);
-SExp *primitive_display(std::list<SExp *> args, Env &env);
-SExp *primitive_displayln(std::list<SExp *> args, Env &env);
-SExp *primitive_map(std::list<SExp *> args, Env &env);
-SExp *primitive_filter(std::list<SExp *> args, Env &env);
-SExp *primitive_fold(std::list<SExp *> args, Env &env);
-SExp *primitive_list(std::list<SExp *> args, Env &env);
+
+namespace primitive {
+SExp *cons(std::list<SExp *> args, Env &env);
+SExp *car(std::list<SExp *> args, Env &env);
+SExp *isnull(std::list<SExp *> args, Env &env);
+SExp *cdr(std::list<SExp *> args, Env &env);
+SExp *quote(std::list<SExp *> args, Env &env);
+SExp *define(std::list<SExp *> args, Env &env);
+SExp *lambda(std::list<SExp *> args, Env &env);
+SExp *if_stmt(std::list<SExp *> args, Env &env);
+SExp *not_stmt(std::list<SExp *> args, Env &env);
+SExp *exit_stmt(std::list<SExp *> args, Env &env);
+SExp *numeric_eq(std::list<SExp *> args, Env &env);
+SExp *eq(std::list<SExp *> args, Env &env);
+SExp *modulo(std::list<SExp *> args, Env &env);
+SExp *eval(std::list<SExp *> args, Env &env);
+SExp *is_number(std::list<SExp *> args, Env &env);
+SExp *open_output_port(std::list<SExp *> args, Env &env);
+SExp *close_output_port(std::list<SExp *> args, Env &env);
+SExp *display(std::list<SExp *> args, Env &env);
+SExp *displayln(std::list<SExp *> args, Env &env);
+SExp *map(std::list<SExp *> args, Env &env);
+SExp *filter(std::list<SExp *> args, Env &env);
+SExp *fold(std::list<SExp *> args, Env &env);
+SExp *list(std::list<SExp *> args, Env &env);
+}
 #endif

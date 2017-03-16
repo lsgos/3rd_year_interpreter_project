@@ -1,6 +1,6 @@
 #include "primitives.h"
 
-SExp *primitive_cons(std::list<SExp *> args, Env &env) {
+SExp *primitive::cons(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments in primitive cons");
   }
@@ -32,7 +32,7 @@ SExp *primitive_cons(std::list<SExp *> args, Env &env) {
   return env.allocate(new List(cons_list));
 }
 
-SExp *primitive_car(std::list<SExp *> args, Env &env) {
+SExp *primitive::car(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in primitive car");
   }
@@ -49,7 +49,7 @@ SExp *primitive_car(std::list<SExp *> args, Env &env) {
   return car;
 }
 
-SExp *primitive_isnull(std::list<SExp *> args, Env &env) {
+SExp *primitive::isnull(std::list<SExp *> args, Env &env) {
   bool result = false;
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in functino null?");
@@ -63,7 +63,7 @@ SExp *primitive_isnull(std::list<SExp *> args, Env &env) {
   }
 }
 
-SExp *primitive_cdr(std::list<SExp *> args, Env &env) {
+SExp *primitive::cdr(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in primitive cdr");
   }
@@ -80,7 +80,7 @@ SExp *primitive_cdr(std::list<SExp *> args, Env &env) {
   return env.allocate(new List(elems));
 }
 
-SExp *primitive_quote(std::list<SExp *> args, Env &env) {
+SExp *primitive::quote(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in primitive quote");
   }
@@ -88,7 +88,7 @@ SExp *primitive_quote(std::list<SExp *> args, Env &env) {
   return atom;
 }
 
-SExp *primitive_define(std::list<SExp *> args, Env &env) {
+SExp *primitive::define(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments in primitive "
                            "define: expected two");
@@ -106,7 +106,7 @@ SExp *primitive_define(std::list<SExp *> args, Env &env) {
   return env.allocate(new List);
 }
 
-SExp *primitive_lambda(std::list<SExp *> args, Env &env) {
+SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
   // lambda is a special form: evaluate the first argument, but
   // none of
   // the
@@ -149,7 +149,7 @@ SExp *primitive_lambda(std::list<SExp *> args, Env &env) {
   return env.allocate(new LambdaFunction(closure, param_list, args));
 }
 // implement the if special form
-SExp *primitive_if(std::list<SExp *> args, Env &env) {
+SExp *primitive::if_stmt(std::list<SExp *> args, Env &env) {
   if (args.size() != 3) {
     throw evaluation_error("Incorrect number of arguments in if special form");
   }
@@ -167,12 +167,12 @@ SExp *primitive_if(std::list<SExp *> args, Env &env) {
   }
 }
 
-SExp *primitive_exit(std::list<SExp *> args, Env &env) {
+SExp *primitive::exit_stmt(std::list<SExp *> args, Env &env) {
   throw exit_interpreter();
   return nullptr;
 }
 
-SExp *primitive_numeric_eq(std::list<SExp *> args, Env &env) {
+SExp *primitive::numeric_eq(std::list<SExp *> args, Env &env) {
   if (args.size() < 2) {
     throw evaluation_error("Too few arguments in primitive "
                            "=; expected two or more");
@@ -197,7 +197,7 @@ SExp *primitive_numeric_eq(std::list<SExp *> args, Env &env) {
   }
   return env.allocate(new Bool(result));
 }
-SExp *primitive_eq(std::list<SExp *> args, Env &env) {
+SExp *primitive::eq(std::list<SExp *> args, Env &env) {
   // This is slightly different from the canonical lisp eq, which
   // compares for
   // pointer equality. This is in fact equivalent to schemes eqv.
@@ -249,7 +249,7 @@ SExp *primitive_eq(std::list<SExp *> args, Env &env) {
   return env.allocate(new Bool(result));
 }
 
-SExp *primitive_eval(std::list<SExp *> args, Env &env) {
+SExp *primitive::eval(std::list<SExp *> args, Env &env) {
   // evaluate the argument as a lisp expression
 
   if (args.size() != 1) {
@@ -262,7 +262,7 @@ SExp *primitive_eval(std::list<SExp *> args, Env &env) {
   return exp->eval(env);
 }
 
-SExp *primitive_is_number(std::list<SExp *> args, Env &env) {
+SExp *primitive::is_number(std::list<SExp *> args, Env &env) {
   // test if the input is a number
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in function number?");
@@ -274,7 +274,7 @@ SExp *primitive_is_number(std::list<SExp *> args, Env &env) {
   return env.allocate(new Bool(result));
 }
 
-SExp *primitive_open_output_port(std::list<SExp *> args, Env &env) {
+SExp *primitive::open_output_port(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error(
         "Invalid number of arguments in function open-output-port");
@@ -295,7 +295,7 @@ SExp *primitive_open_output_port(std::list<SExp *> args, Env &env) {
   }
 }
 
-SExp *primitive_display(std::list<SExp *> args, Env &env) {
+SExp *primitive::display(std::list<SExp *> args, Env &env) {
   SExp *msg, *output_port;
   switch (args.size()) {
   case 1:
@@ -324,7 +324,7 @@ SExp *primitive_display(std::list<SExp *> args, Env &env) {
   static_cast<OutPort *>(output_port)->write(buf.str(), env);
   return env.lookup("null");
 }
-SExp *primitive_displayln(std::list<SExp *> args, Env &env) {
+SExp *primitive::displayln(std::list<SExp *> args, Env &env) {
   SExp *msg, *output_port;
   switch (args.size()) {
   case 1:
@@ -356,7 +356,7 @@ SExp *primitive_displayln(std::list<SExp *> args, Env &env) {
 
   return env.lookup("null");
 }
-SExp *primitive_close_output_port(std::list<SExp *> args, Env &env) {
+SExp *primitive::close_output_port(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error(
         "Incorrect number of arguments in function close-output-port");
@@ -370,7 +370,7 @@ SExp *primitive_close_output_port(std::list<SExp *> args, Env &env) {
   return env.lookup("null");
 }
 
-SExp *primitive_modulo(std::list<SExp *> args, Env &env) {
+SExp *primitive::modulo(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Invalid number of arguments in function %");
   }
@@ -388,7 +388,7 @@ SExp *primitive_modulo(std::list<SExp *> args, Env &env) {
   return env.allocate(new Number(result));
 }
 
-SExp *primitive_not(std::list<SExp *> args, Env &env) {
+SExp *primitive::not_stmt(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in function not");
   }
@@ -415,7 +415,7 @@ SExp *quote_var(SExp *var, Env &env) {
 }
 
 // (map f xs) where xs = (a b c d ...) --> ((f a) (f b) (f c) (f d) ...)
-SExp *primitive_map(std::list<SExp *> args, Env &env) {
+SExp *primitive::map(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments in primitive map");
   }
@@ -442,7 +442,7 @@ SExp *primitive_map(std::list<SExp *> args, Env &env) {
   return env.allocate(new List(elements));
 }
 
-SExp *primitive_filter(std::list<SExp *> args, Env &env) {
+SExp *primitive::filter(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments in primitive filter");
   }
@@ -484,7 +484,7 @@ SExp *primitive_filter(std::list<SExp *> args, Env &env) {
 // Implements a left fold over the list with the last element as the accumulator
 
 //(fold (f acc x -> acc) acc (xs) )
-SExp *primitive_fold(std::list<SExp *> args, Env &env) {
+SExp *primitive::fold(std::list<SExp *> args, Env &env) {
   if (args.size() != 3) {
     throw evaluation_error("Incorrect number of arguments in primitive fold");
   }
@@ -520,7 +520,7 @@ SExp *primitive_fold(std::list<SExp *> args, Env &env) {
   return result;
 }
 
-SExp *primitive_list(std::list<SExp *> args, Env &env) {
+SExp *primitive::list(std::list<SExp *> args, Env &env) {
   // construct a list from elems: this is very simple!
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
   return env.allocate(new List(args));
