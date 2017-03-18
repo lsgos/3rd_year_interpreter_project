@@ -77,6 +77,60 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   return result;
 }
 
+InPort::InPort(std::string name) : stdin(false), name(name) {
+  file.open(name);
+  if (!file.is_open()) {
+    throw io_error("Cannot open file " + name);
+  }
+}
+
+void InPort::close() {
+  if (file.is_open()) {
+    file.close();
+  }
+}
+
+InPort::~InPort() { this->close(); }
+
+// Allow three kinds of reading: the entire file as a string, one line at a
+// time, and one char at a time
+SExp *InPort::read(Env &env) {
+  // check the file state is ok before reading
+  if (!stdin) {
+    if (!file.is_open()) {
+      throw io_error("Invalid attempt to read from closed file");
+    } else if (!file.good()) {
+      throw io_error("Found output file in invalid state");
+    }
+  }
+  std::istream &in = stdin ? std::cin : file;
+  // this is exploiting the fact that the std::istreambuf_iterator's default
+  // constructor leaves it in
+  // the eof state, thus this will read from the file until eof is reached,
+  // constructing str as it does
+  auto str = std::string((std::istreambuf_iterator<char>(in)),
+                         std::istreambuf_iterator<char>());
+  return env.allocate(new String(str));
+}
+
+SExp *InPort::read_ln(Env &env) {
+  if (!stdin) {
+    if (!file.is_open()) {
+      throw io_error("Invalid attempt to read from closed file");
+    } else if (!file.good()) {
+      throw io_error("Found output file in invalid state");
+    }
+  }
+  std::istream &in = stdin ? std::cin : file;
+  // this is exploiting the fact that the std::istreambuf_iterator's default
+  // constructor leaves it in
+  // the eof state, thus this will read from the file until eof is reached,
+  // constructing str as it does
+  std::string str;
+  std::getline(in, str);
+  return env.allocate(new String(str));
+}
+
 OutPort::OutPort(std::string name) : stdoutput(false), name(name) {
   // we want the file to be open as long as this object exists, so the program
   // maintains

@@ -210,14 +210,20 @@ class InPort : public SExp {
 private:
   std::string name;
   bool stdin;
+  std::ifstream file;
 
 public:
   InPort() : stdin(true) {}
   InPort(std::string name);
-  LispType type() { return LispType::InPort; }
-  SExp *read();
+  LispType type() const override { return LispType::InPort; }
+  SExp *read(Env &env);
+  SExp *read_char(Env &env);
+  SExp *read_ln(Env &env);
   SExp *eval(Env &env) override { return this; }
+  void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
   std::string get_name() { return name; }
+  void close();
+  ~InPort();
 };
 
 class OutPort : public SExp {

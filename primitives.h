@@ -41,11 +41,17 @@ SExp *eval(std::list<SExp *> args, Env &env);
 SExp *is_number(std::list<SExp *> args, Env &env);
 SExp *open_output_port(std::list<SExp *> args, Env &env);
 SExp *close_output_port(std::list<SExp *> args, Env &env);
+SExp *open_input_port(std::list<SExp *> args, Env &env);
+SExp *close_input_port(std::list<SExp *> args, Env &env);
+SExp *port_to_string(std::list<SExp *> args, Env &env);
 SExp *display(std::list<SExp *> args, Env &env);
 SExp *displayln(std::list<SExp *> args, Env &env);
 SExp *map(std::list<SExp *> args, Env &env);
 SExp *filter(std::list<SExp *> args, Env &env);
 SExp *fold(std::list<SExp *> args, Env &env);
 SExp *list(std::list<SExp *> args, Env &env);
+SExp *logical_and(std::list<SExp *> args, Env &env);
+SExp *logical_or(std::list<SExp *> args, Env &env);
+SExp *read(std::list<SExp *> args, Env &env);
 }
 #endif

@@ -1,4 +1,6 @@
 #include "primitives.h"
+#include "parser.h"
+#include <algorithm>
 
 SExp *primitive::cons(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
@@ -295,6 +297,59 @@ SExp *primitive::open_output_port(std::list<SExp *> args, Env &env) {
   }
 }
 
+SExp *primitive::open_input_port(std::list<SExp *> args, Env &env) {
+  if (args.size() != 1) {
+    throw evaluation_error(
+        "Invalid number of arguments in function open-output-port");
+  }
+  SExp *fname = args.front()->eval(env);
+  if (fname->type() != LispType::String) {
+    throw evaluation_error(
+        "Invalid argument to function open-output-port: expected string");
+  }
+  std::string name = static_cast<String *>(fname)->val();
+
+  try {
+    return env.allocate(new InPort(name));
+  } catch (io_error e) {
+    // use booleans to signal errors to the calling program, since we aren't
+    // going to implement exception catching
+    return env.allocate(new Bool(false));
+  }
+}
+
+SExp *primitive::close_input_port(std::list<SExp *> args, Env &env) {
+  if (args.size() != 1) {
+    throw evaluation_error(
+        "Incorrect number of arguments in function close-output-port");
+  }
+  SExp *arg = args.front()->eval(env);
+  if (arg->type() != LispType::InPort) {
+    throw evaluation_error(
+        "Invalid call of close-outport-port on non output port type");
+  }
+  static_cast<InPort *>(arg)->close();
+  return env.lookup("null");
+}
+
+// read the entire contents of a file into a string
+SExp *primitive::port_to_string(std::list<SExp *> args, Env &env) {
+  if (args.size() != 1) {
+    throw evaluation_error(
+        "Incorrect number of arguments in function port->string");
+  }
+  SExp *arg = args.front()->eval(env);
+  if (arg->type() != LispType::InPort) {
+    throw evaluation_error(
+        "Type error: expected a port in function port->string");
+  }
+  try {
+    return static_cast<InPort *>(arg)->read(env);
+  } catch (io_error e) {
+    return env.allocate(new Bool(false)); // return false if nothing can be read
+  }
+}
+
 SExp *primitive::display(std::list<SExp *> args, Env &env) {
   SExp *msg, *output_port;
   switch (args.size()) {
@@ -410,7 +465,32 @@ SExp *primitive::not_stmt(std::list<SExp *> args, Env &env) {
 // constructing a
 // new quote variable
 
-SExp *quote_var(SExp *var, Env &env) {
+SExp *primitive::logical_and(std::list<SExp *> args, Env &env) {
+  std::for_each(args.begin(), args.end(),
+                [&env](SExp *&a) { a = a->eval(env); });
+  bool result = true;
+  for (auto it = args.begin(); it != args.end(); ++it) {
+    if (!is_true(*it)) {
+      result = false;
+      break;
+    }
+  }
+  return env.allocate(new Bool(result));
+}
+SExp *primitive::logical_or(std::list<SExp *> args, Env &env) {
+  std::for_each(args.begin(), args.end(),
+                [&env](SExp *&a) { a = a->eval(env); });
+  bool result = false;
+  for (auto it = args.begin(); it != args.end(); ++it) {
+    if (is_true(*it)) {
+      result = true;
+      break;
+    }
+  }
+  return env.allocate(new Bool(result));
+}
+
+static SExp *quote_var(SExp *var, Env &env) {
   return env.allocate(new List(std::list<SExp *>{env.lookup("quote"), var}));
 }
 
@@ -524,4 +604,25 @@ SExp *primitive::list(std::list<SExp *> args, Env &env) {
   // construct a list from elems: this is very simple!
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
   return env.allocate(new List(args));
+}
+// convert a string to an s-expression
+SExp *primitive::read(std::list<SExp *> args, Env &env) {
+  // construct a list from elems: this is very simple!
+  if (args.size() != 1) {
+    throw evaluation_error(
+        "Invalid number of arguments in function read: expected 1");
+  }
+  auto arg = args.front()->eval(env);
+  if (arg->type() != LispType::String) {
+    throw evaluation_error("Cannot read a non-string type");
+  }
+  std::string str = static_cast<String *>(arg)->val();
+
+  // try to parse the string as an s-expression, returning its value
+  // this function is problematic since there is basically no sensible
+  // way to signal that this function has failed without adding exceptions
+  // to the language
+  auto buf = std::stringstream(str);
+  auto parser = Parser(buf);
+  return parser.read_sexp(env);
 }

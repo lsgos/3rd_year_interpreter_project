@@ -3,6 +3,8 @@ CXXFLAGS= -std=c++11
 
 debug: CXXFLAGS += -DDEBUG -g
 debug: build
+optimise: CXXFLAGS += -O3
+optimise: build
 release: build
 
 build: main.o sexp.o lexer.o parser.o env.o heap.o primitives.o

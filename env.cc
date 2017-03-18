@@ -112,6 +112,11 @@ void GlobalEnv::bind_primitives() {
   def("filter", mk_builtin(filter, "filter"));
   def("fold", mk_builtin(fold, "fold"));
   def("list", mk_builtin(list, "list"));
+  def("and", mk_builtin(logical_and, "and"));
+  def("or", mk_builtin(logical_or, "or"));
+  def("open-input-port", mk_builtin(open_input_port, "open-input-port"));
+  def("port->string", mk_builtin(port_to_string, "port->string"));
+  def("read", mk_builtin(read, "read"));
   return;
 }
 
