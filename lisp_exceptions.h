@@ -6,10 +6,10 @@
 
 // custom exceptions used by lisp.
 
-class parser_exception : public std::exception {
+class parser_error : public std::exception {
 public:
   virtual const char *what() const throw() { return msg.c_str(); }
-  parser_exception(int linenum, std::string msg_str = "Parse exception")
+  parser_error(int linenum, std::string msg_str = "Parse exception")
       : linenum(linenum) {
     msg = "[Line " + std::to_string(linenum) + "]: " + msg_str;
   }

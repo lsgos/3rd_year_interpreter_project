@@ -16,6 +16,8 @@ as a number or a string, this is stored in the lexer, and must
 be retrieved from it using the accessor functions by the parser
 when it encounters a appropriate symbol.
 */
+
+
 enum class Token {
   // lexer tokens: the things that we can encounter in our language.
   eof,
@@ -24,8 +26,6 @@ enum class Token {
   kw_quote, //' backtick syntactic sugar
   kw_true,
   kw_false,
-  // possibly add more tokens here? should keywords like if, else etc be
-  // functions or keywords?
   atom,   // atomic identifier
   num,    // double
   string, // string literals
@@ -37,7 +37,7 @@ public:
   std::string parsed_str;
   double parsed_num;
   int linenum;
-  Lexer(std::istream &stream) : stream(stream) { linenum = 1; }
+  Lexer(std::istream &stream) : stream(stream), linenum(1) {}
   std::string get_parsed_str() { return parsed_str; }
   double get_parsed_num() { return parsed_num; }
   int get_linenum() { return linenum; }

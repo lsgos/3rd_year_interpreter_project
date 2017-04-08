@@ -28,7 +28,8 @@ Token Lexer::get_token() {
     consume_comment();
     return get_token();
   }
-  throw implementation_error("Non-irrefutable logic pattern in lexer");
+  //debugging assertion
+  throw implementation_error("Non-irrefutable logic pattern in lexer"); 
 }
 // ignore whitespace characters, keeping track of the internal line number
 // counter.
@@ -61,7 +62,7 @@ Token Lexer::lisp_number(char c) {
 
   for (; isdigit(c); c = stream.get()) {
     if (c == EOF) {
-      throw parser_exception(linenum, "Reached unexpected end-of-file "
+      throw parser_error(linenum, "Reached unexpected end-of-file "
                                       "while parsing numeric literal");
     }
     buf.put(c);
@@ -70,7 +71,7 @@ Token Lexer::lisp_number(char c) {
     buf.put('.');
     for (c = stream.get(); isdigit(c); c = stream.get()) {
       if (c == EOF) {
-        throw parser_exception(linenum, "Reached unexpected "
+        throw parser_error(linenum, "Reached unexpected "
                                         "end-of-file while parsing "
                                         "numeric literal");
       }
@@ -119,13 +120,13 @@ Token Lexer::lisp_string(char c) {
         buf.put('\\');
         break;
       default:
-        throw parser_exception(linenum,
+        throw parser_error(linenum,
                                "Unrecognised escape sequence in parser");
       }
       continue;
     }
     if (c == EOF) {
-      throw parser_exception(linenum, "Reached unexpected "
+      throw parser_error(linenum, "Reached unexpected "
                                       "end-of-file: expected "
                                       "closing \"");
     }
@@ -149,7 +150,7 @@ Token Lexer::lisp_bool(char c) {
   int b = stream.get();
   char peek = stream.peek();
   if (!(is_delim(peek) || peek == ')')) {
-    throw parser_exception(linenum,
+    throw parser_error(linenum,
                            "Unexpected character following #: expected t or f");
   }
   switch (b) {
@@ -158,7 +159,7 @@ Token Lexer::lisp_bool(char c) {
   case 'f':
     return Token::kw_false;
   default:
-    throw parser_exception(linenum,
+    throw parser_error(linenum,
                            "Unexpected character following #: expected t or f");
   }
 }

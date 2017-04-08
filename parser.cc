@@ -30,10 +30,10 @@ SExp *Parser::parse(Env &env, Token token) {
   case Token::kw_quote:
     return mk_quoted_list(env);
   case Token::eof:
-    throw parser_exception(lexer.get_linenum(), "Unexpected EOF");
+    throw parser_error(lexer.get_linenum(), "Unexpected EOF");
   case Token::close_bracket:
     // these shouldn't be encountered outside the list parse function
-    throw parser_exception(lexer.get_linenum(), "Unexpected )");
+    throw parser_error(lexer.get_linenum(), "Unexpected )");
   default:
     std::cout << "Found " << int(token) << std::endl;
     throw implementation_error("Non-irrefutable patterns in parser");
