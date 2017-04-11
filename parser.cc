@@ -1,10 +1,5 @@
 #include "parser.h"
 
-/*
-this function only really exists to hide the lexer implementation: since
-no other part of the runtime needs to access this, it can be entirely
-encapsulated as a private member of the parser class.
-*/
 
 SExp *Parser::read_sexp(Env &env) {
   auto token = lexer.get_token();
@@ -30,10 +25,10 @@ SExp *Parser::parse(Env &env, Token token) {
   case Token::kw_quote:
     return mk_quoted_list(env);
   case Token::eof:
-    throw parser_error(lexer.get_linenum(), "Unexpected EOF");
+    throw parser_error("Unexpected EOF");
   case Token::close_bracket:
     // these shouldn't be encountered outside the list parse function
-    throw parser_error(lexer.get_linenum(), "Unexpected )");
+    throw parser_error("Unexpected )");
   default:
     std::cout << "Found " << int(token) << std::endl;
     throw implementation_error("Non-irrefutable patterns in parser");

@@ -2,15 +2,8 @@
 #include "env.h"
 #include "primitives.h"
 #include "sexp.h"
-// for now, just implement numeric primitives
 
-// TODO try to come up with a way to abstract the creation of these things? a
-// lot of boilerplate here
-// Maybe use a different helper function for special forms and functions?
-
-// Function to abstract boilerplate in builtin function generation
-
-// a function to abstract the creation of numeric primitives functions
+// a function to abstract the creation of numeric primitive functions
 SExp *GlobalEnv::mk_numeric_primitive(
     std::function<double(double acc, double x)> func, std::string funcname) {
 
@@ -30,11 +23,6 @@ SExp *GlobalEnv::mk_numeric_primitive(
                                "function " +
                                funcname);
       }
-      // now we know its a number, we are free to down-cast
-      // the pointer to
-      // access it's numeric field. We need to use get() to
-      // access the raw
-      // pointer managed by the unique pointer wrapper
       double num = (static_cast<Number *>(*it))->val();
 
       if (it == args.begin()) {
@@ -59,7 +47,6 @@ SExp *GlobalEnv::mk_builtin(std::function<SExp *(std::list<SExp *>, Env &)> fn,
 // called to create a blank environment: bind the language builtins
 GlobalEnv::GlobalEnv() { bind_primitives(); }
 
-// this creates a new closure, pointing to the one that created it.
 SExp *Env::lookup(std::string id) {
 
   auto x = scope.find(id);
@@ -128,9 +115,10 @@ Env GlobalEnv::capture_scope() {
   return Env(*this);
 }
 
+// note that this stores a reference back to the scope
+// that created it: hence why global cannot move
 Env::Env(GlobalEnv &g) : global(&g) { scope = g.scope; }
 
-// defineing is only legal in the global scope
 void Env::def(std::string id, SExp *value) {
   // bind to the global scope
   scope[id] = value;

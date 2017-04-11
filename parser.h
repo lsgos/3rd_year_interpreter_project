@@ -15,11 +15,9 @@ class Parser {
 public:
   Parser(std::istream &instream) : lexer(Lexer(instream)) {}
   SExp *read_sexp(Env &env);
-
+  int get_linenum() { return lexer.get_linenum(); }
 private:
   SExp *parse(Env &env, Token token);
-
-private:
   Lexer lexer;
   SExp *parse_list(Env &env);
   // this supports the backtick quote syntactic sugar: '(1 2) is

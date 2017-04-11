@@ -73,25 +73,21 @@ public:
   // Garbage collection is handled by the Env class
   virtual SExp *eval(Env &env) = 0;
   // returns an enum value giving which subclass of SExp an instantiation
-  // of
-  // this interface actually is. This is needed when one expects a
-  // specific
-  // type
-  // (e.g numbers for numeric primitives, functions for function
-  // application)
-  // and one has to downcast to the type from the generic in order to
-  // extract
-  // its data. Checking with this first preserves safety
+  // of this interface actually is. This is needed when one
+  // expects a specific type (e.g numbers for numeric
+  // primitives, functions for function application) and
+  // one has to downcast to the type from the generic in
+  // order to extract its data. Checking with this first
+  // preserves safety
   virtual LispType type() const = 0;
   virtual ~SExp() {}
 };
 
 // template class for 'primitive' types, like numbers and booleans. Primitive
-// types
-// all essentially just box a c++ value, and they all eval to themselves, so
-// most
-// of the boilerplate of creating these classes can be abstracted to a template.
-// The intantiated templates have to implement the exec visitor function though
+// types all essentially just box a c++ value, and they all eval to themselves,
+// so most of the boilerplate of creating these classes can be abstracted to a
+// template. The intantiated templates have to implement the exec visitor
+// function though
 template <typename T, LispType kind> class PrimitiveType : public SExp {
   const T value;
 
@@ -123,7 +119,8 @@ public:
 
 // Atoms represent symbols. While the actual data is a string, an atom
 // is semantically totally different: it is evaluated by replacing it
-// with it's defined value in the symbol table in env.
+// with the value corresponding to it in the symbol table (see env.h)
+
 class Atom : public SExp {
 public:
   Atom(std::string id) : id(id) {}
@@ -139,6 +136,7 @@ private:
 
 // Linked lists. Lists are eval'ed as function calls, of the form
 //(f arg1 arg2 ...)
+
 class List : public SExp {
 public:
   List(std::list<SExp *> list) : elems(list) {}
@@ -147,7 +145,6 @@ public:
   virtual SExp *eval(Env &env) override;
   LispType type() const override { return LispType::List; }
   ~List() override {}
-
   List() {}
 };
 
@@ -180,7 +177,7 @@ public:
   ~PrimitiveFunction() override {}
 };
 
-// user defined function closures.
+// user defined functions
 class LambdaFunction : public Function {
 private:
   const std::list<std::string> params;
@@ -189,8 +186,7 @@ private:
 
 public:
   // constructor: caputures a scope, a list of parameter names and a body,
-  // a
-  // sequence of SExps to execute when the function is called.
+  // a sequence of SExps to execute when the function is called.
   LambdaFunction(Env env, std::list<std::string> params, std::list<SExp *> body)
       : closure(env), params(params), body(body) {}
   virtual SExp *call(std::list<SExp *> args, Env &env) override;
@@ -199,12 +195,12 @@ public:
   SExp *eval(Env &env) override { return this; }
   ~LambdaFunction() override {}
   friend class Heap; // needs to access the env and body of lambdas for
-                     // garbage
-                     // collection
+                     // garbage collection
+
   friend class Representor;
 };
 
-// Handles to input and output streams //TODO finish implementing this
+// Handles to input and output streams
 
 class InPort : public SExp {
 private:
@@ -217,7 +213,6 @@ public:
   InPort(std::string name);
   LispType type() const override { return LispType::InPort; }
   SExp *read(Env &env);
-  SExp *read_char(Env &env);
   SExp *read_ln(Env &env);
   SExp *eval(Env &env) override { return this; }
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
@@ -244,7 +239,12 @@ public:
   ~OutPort();
 };
 
-// visitor class, writes a representation of an s-expression to a stream
+// The representor class is used to write the s-expressions to a stream. It is
+// written using the 'visitor pattern', a way of decoupling operations on
+// classes from the object structure. By calling sexp->exec(*this), a visitor
+// despatches it's own visit method on the actual underlying sexp object. It
+// looks a little bit complicated but it all works out.
+
 class Representor : public SExpVisitor {
 protected:
   std::ostream &stream;
@@ -262,14 +262,15 @@ public:
   void visit(OutPort &out);
 };
 
-// implement the stream insertion operator for Sexps using the representor class
+// implement the stream insertion operator for sexps using the representor class
 std::ostream &operator<<(std::ostream &os, SExp &sexp);
 
-// There should be a different printing behaviour for strings only when they are
-// printed
-// as formatted output: they should be displayed literally rather than enclosed
-// in quotes.
-// Everything else can be inherited from the basic representor.
+// A slightly different version of the representor, which is used when printing
+// using the display function. The only difference is that strings are printed
+// with their actual values (so "hello" is printed as hello instead of "hello").
+// Notice that the use of the visitor pattern means the sexp heirarchy doesn't
+// have to know about the existence of this extra functionality
+
 class DisplayRepresentor : public Representor {
 public:
   DisplayRepresentor(std::ostream &os) : Representor(os) {}

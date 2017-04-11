@@ -10,8 +10,7 @@
 This is where most of the language builtin functions and special forms are
 defined.
 They ought to have fairly self-explanitory functionality. Note they all have an
-identical
-function signiture.
+identical function signiture.
 
 In the env.cc class, these are all used to construct PrimitiveFunction objects,
 which are then

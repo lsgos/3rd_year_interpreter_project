@@ -15,24 +15,22 @@ This is fairly simple as all the heavy lifting is done in the classes.
 
 int repl() {
   auto p = Parser(std::cin);
-  GlobalEnv env = GlobalEnv();
+  GlobalEnv env;
   while (true) {
     try {
       std::cout << " <<=  ";
-      auto sexp = p.read_sexp(env); // should we use the stream extraction
-      // operator here? maybe not, since we want
-      // to catch exceptions thrown by the
-      // parser, and canonically the stream extractor should set the failbit
-      // rather than throw
+      auto sexp = p.read_sexp(env);
+      if (!sexp) {
+      	//EOF character: exit the interpreter
+      	throw exit_interpreter();
+      }
       sexp = sexp->eval(env);
       std::cout << " --> " << *sexp << std::endl;
       env.collect_garbage();
     } catch (exit_interpreter &e) {
       break;
     } catch (std::exception &e) {
-      // TODO: make sure EOF kills the interpreter as
-      // well
-      std::cout << "Exception: " << e.what() << std::endl;
+      std::cout << e.what() << std::endl;
       std::cin.clear();
       std::cin.ignore(1000, '\n');
     }
@@ -49,7 +47,7 @@ int script(char *filename) {
     return 1;
   }
   auto p = Parser(file);
-  GlobalEnv env = GlobalEnv();
+  GlobalEnv env;
   SExp *exp = p.read_sexp(env);
   while (file.good()) {
     try {
@@ -60,9 +58,8 @@ int script(char *filename) {
     } catch (exit_interpreter &e) {
       return 0;
     } catch (std::exception &e) {
-      // TODO: make sure EOF kills the interpreter as
-      // well
-      std::cout << "Exception: " << e.what() << std::endl;
+    //if an error occurs, report the file and the line so the user can find it easily
+      std::cout << "["<< filename << ":"<< p.get_linenum() << "] "<< e.what() << std::endl;
       return 1;
     }
   }
@@ -70,7 +67,7 @@ int script(char *filename) {
 }
 
 int main(int argc, char *argv[]) {
-  
+
   if (argc == 1) {
     return repl();
   } else if (argc == 2) {

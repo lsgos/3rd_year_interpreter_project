@@ -13,21 +13,12 @@ SExp *primitive::cons(std::list<SExp *> args, Env &env) {
   SExp *car = args.front();
   args.pop_front();
   SExp *cdr = args.front();
-  // technically this is different from classical lisp as we don't
-  // have a
-  // dotted-list type (which I don't see as particularly useful)
   if (cdr->type() != LispType::List) {
     throw evaluation_error("Cannot cons onto a non-list "
                            "type [expected: (cons T "
                            "list)]");
   }
-  // push the car argument onto the list of the second, then
-  // return the
-  // second
-  // argument.
-  // Copy the list: this only copies the pointers, so it should be
-  // relatively
-  // cheap
+
   auto list_cdr = static_cast<List *>(cdr);
   std::list<SExp *> cons_list = list_cdr->elems;
   cons_list.push_front(car);
@@ -110,9 +101,8 @@ SExp *primitive::define(std::list<SExp *> args, Env &env) {
 
 SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
   // lambda is a special form: evaluate the first argument, but
-  // none of
-  // the
-  // others.
+  // none of the others.
+
   if (args.size() < 2) {
     throw evaluation_error("Too few arguments in call to lambda");
   }
@@ -125,15 +115,21 @@ SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
   // this will be used to construct the lambda
   std::list<std::string> param_list;
   if (param_type == LispType::Atom) {
+
     auto at = static_cast<Atom *>(first);
     param_list.push_back(at->get_identifier());
+
   } else if (param_type == LispType::List) {
+
     // check f it's a list of atoms
     auto list = static_cast<List *>(first);
+
     for (auto it = list->elems.begin(); it != list->elems.end(); ++it) {
       if ((*it)->type() == LispType::Atom) {
+
         auto at = static_cast<Atom *>(*it);
         param_list.push_back(at->get_identifier());
+
       } else {
         throw evaluation_error("Error in arguments to lambda: "
                                "expected "
@@ -201,14 +197,8 @@ SExp *primitive::numeric_eq(std::list<SExp *> args, Env &env) {
 }
 SExp *primitive::eq(std::list<SExp *> args, Env &env) {
   // This is slightly different from the canonical lisp eq, which
-  // compares for
-  // pointer equality. This is in fact equivalent to schemes eqv.
-  // However in my
-  // implementation comparing for pointer equality is more or less
-  // pointless as very
-  // few objects will have equal pointers, so we may as well just
-  // have the obvious
-  // test for equality on primitives.
+  // compares for pointer equality. This is actually more like 
+  // the function eqv, which is more sensible
 
   if (args.size() != 2) {
     throw evaluation_error("Incorrect number of arguments "

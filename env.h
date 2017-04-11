@@ -12,13 +12,7 @@
 The Env manages scope resolution and definition via a symbol table. This
 functionality is essentially a wrapper around a hash table mapping strings to
 SExp pointers.
-The GlobalEnv also contains a heap object, and thus reponsible for tracking memory.
-Env objects can also be used to track memory, but they simply send it on to the
-global scope.
-
-Global Env's and heaps only really make sense if they are unique (one per runtime
-instance) so their copy constructors and assignment operators are deleted.
-In practice we can just not use them but it adds semantic clarity.
+The GlobalEnv also contains a heap object, which manages memory
 */
 
 class Env {
@@ -60,13 +54,20 @@ public:
   SExp *allocate(SExp *obj) override { return heap.allocate(obj); }
   void bind_primitives();
   ~GlobalEnv() override;
-   GlobalEnv(GlobalEnv&& other) = default;
-   // Move assignment operator.
-   GlobalEnv& operator=(GlobalEnv&&) = default;
-   GlobalEnv(const GlobalEnv&) = delete;
-   GlobalEnv& operator = (const GlobalEnv&) = delete;
-   void collect_garbage() {heap.collect_garbage(*this);}
-   //friend class Heap;
+  /*
+  the global env cannot be moved without breaking
+  everything (since the dispatch of allocation
+  to the garbage collector depends on a pointer to
+  it being stored in Env's that are created using it: see env.cc).
+  As a result, all constructors and operators that would allow it
+  to be moved or copied are forbidden
+  */
+  GlobalEnv(GlobalEnv&& other) = delete;
+  GlobalEnv& operator=(GlobalEnv&&) = delete;
+  GlobalEnv(const GlobalEnv&) = delete;
+  GlobalEnv& operator = (const GlobalEnv&) = delete;
+  void collect_garbage() {heap.collect_garbage(*this);}
+ 
 };
 
 

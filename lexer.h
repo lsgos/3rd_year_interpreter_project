@@ -17,7 +17,6 @@ be retrieved from it using the accessor functions by the parser
 when it encounters a appropriate symbol.
 */
 
-
 enum class Token {
   // lexer tokens: the things that we can encounter in our language.
   eof,
@@ -36,7 +35,7 @@ public:
   std::istream &stream;
   std::string parsed_str;
   double parsed_num;
-  int linenum;
+  
   Lexer(std::istream &stream) : stream(stream), linenum(1) {}
   std::string get_parsed_str() { return parsed_str; }
   double get_parsed_num() { return parsed_num; }
@@ -44,6 +43,7 @@ public:
   Token get_token();
 
 private:
+  int linenum;
   void consume_comment();
   void consume_spaces();
   Token lisp_number(char c);

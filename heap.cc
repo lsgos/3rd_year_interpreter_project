@@ -1,69 +1,75 @@
-#include "heap.h"
 #include "env.h"
+#include "heap.h"
 #include "sexp.h"
 
+Heap::Heap(Heap &&other) { objects = std::move(other.objects); }
+Heap &Heap::operator=(Heap other) {
+  swap(*this, other);
+  return *this;
+}
+
+// Should be used as heap.allocate(new some_object);
+// adds the newly created objects address to the heap's record,
+// marking it as unused by default
 SExp *Heap::allocate(SExp *new_object) {
-  // objects.push_back(Cell(new_object));
-  std::pair<SExp *, bool> entry(new_object, false);
-  // std::cout << "Storing " << new_object << std::endl;
-  objects.insert(entry);
+  objects[new_object] = false;
   return new_object;
 }
 
 // The heap class is responsible for manageing the memory usage of
-// the program, so it needs to clean up the pointers.
+// the program, so it's destructor must clean up all the memory it
+// was responsible for
 Heap::~Heap() {
   for (auto it = objects.begin(); it != objects.end(); ++it) {
-    // std::cout << "Freeing " << it->first << std::endl;
     delete it->first;
   }
 }
 
-// setup the heap for mark and sweep: set all the usage marks to zero
+// First phase of mark and sweep: mark everything as unused
 void Heap::reset_marks() {
   for (auto it = objects.begin(); it != objects.end(); ++it) {
     it->second = false;
   }
 }
+
 // sweep memory, cleaning up anything marked for deletion.
 void Heap::sweep() {
+  // the use of it and next is to avoid invalidating it when we remove it
+  // from the table
   for (auto it = objects.begin(), next = objects.begin(); it != objects.end();
        it = next) {
     next = it;
     ++next;
 
     if (!(it->second)) {
-      SExp *ptr = it->first; // cleanup memory managed by this key
-      objects.erase(it);
-      // std::cout << "Freeing " << ptr << std::endl;
-      delete ptr; // remove from the heap
+      SExp *ptr = it->first; // get address
+      objects.erase(it);     // remove entry from object table
+      delete ptr;            // cleanup memory
     }
   }
 }
 
+// mark an object and any objects it contains pointers to as reachable
 void Heap::mark(SExp *addr) {
   auto entry = objects.find(addr);
   if (entry == objects.end()) {
+    // this should never happen
     throw implementation_error(
-        "This shouldn't happen: encountered unmanaged address");
+        "Garbage collector encountered unmanaged address");
   }
-  // mark memory as used
   if (entry->second) {
-    // if this is true, we have already marked this object, and have no need
-    // to mark it again: return early to avoid infinite cycles
+    // if the object is already marked, avoid cycles
     return;
   }
-  entry->second = true;
-  // std::cout << "Marked " << entry->first << " as in use" << std::endl;
+  entry->second = true; // mark address as in use
+
   auto expr_type = entry->first->type();
   // Lists and functions can contain references to other objects: we need
-  // to
-  // recursively trace out their tree.
+  // to mark the objects they reference as in use as well
 
   if (expr_type == LispType::List) {
     auto list = static_cast<List *>(addr);
     for (auto it = list->elems.begin(); it != list->elems.end(); ++it) {
-      // mark all sub elements as well
       mark(*it);
     }
   }
@@ -73,10 +79,7 @@ void Heap::mark(SExp *addr) {
     for (auto obj = lambda->body.begin(); obj != lambda->body.end(); ++obj) {
       mark(*obj);
     }
-    // iterate through the closure's bindings, marking the scope
-    // captured
-    // from
-    // it's creation
+    // mark the expressions pointed to by the functions closure
     for (auto obj = lambda->closure.scope.begin();
          obj != lambda->closure.scope.end(); ++obj) {
       mark(obj->second);
@@ -85,12 +88,9 @@ void Heap::mark(SExp *addr) {
   return;
 }
 
-// naive mark-and-sweep: take the environment bindings, and walk through the
-// objects described by their bindings, marking everything reachable from the
-// root nodes as in use. Then iterate through the object map freeing everything
-// that wasn't reachable; these things have no bindings to the rest of the
-// program
-// and are thus garbage.
+// naive mark-and-sweep: mark all objects pointed to by names in the symbol
+// table as in use, then collect all unmarked memory managed by the heap.
+
 void Heap::collect_garbage(Env &env) {
   reset_marks();
   for (auto entry = env.scope.begin(); entry != env.scope.end(); ++entry) {

@@ -6,12 +6,14 @@
 #include <memory>
 #include <sstream>
 
-// this returns false if exp = #f, true else
+// This is used to implement the 'truthy' behaviour of lisp: all expressions can
+// be substituted for booleans, and everything that isn't #f (false) is true
 bool is_true(SExp *exp) {
   return !(exp->type() == LispType::Bool &&
            static_cast<Bool *>(exp)->val() == false);
 }
 
+// helper functions allowing casts to the function abstract class
 bool is_function(LispType type) {
   return (type == LispType::PrimitiveFunction ||
           type == LispType::LambdaFunction);
@@ -19,7 +21,7 @@ bool is_function(LispType type) {
 
 SExp *Atom::eval(Env &env) {
   auto value = env.lookup(id);
-  if (value != nullptr) {
+  if (value) {
     return value;
   } else {
     throw evaluation_error("Encountered undefined atom " + id);
@@ -30,15 +32,13 @@ SExp *List::eval(Env &env) {
   if (elems.empty()) {
     throw evaluation_error("Cannot evaluate the empty list");
   }
-  SExp *head = elems
-                   .front()     // first element in the list
-                   ->eval(env); // evaluate the expression
+  SExp *head = elems.front()->eval(env);
+
   auto args = elems;
-  args.pop_front();
+  args.pop_front(); // first argument is head
 
   if (!is_function(head->type())) {
-    throw evaluation_error(
-        "Expected function"); // TODO make this error less shit
+    throw evaluation_error("Expected function as first argument");
   }
   auto func = static_cast<Function *>(head);
   SExp *result = func->call(args, env);
@@ -48,7 +48,6 @@ SExp *List::eval(Env &env) {
 SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   // check the argument list matches the params of the function
   if (args.size() != params.size()) {
-
     std::stringstream msg;
     auto repr = Representor(msg);
     msg << "Found mismatched argument list in function ";
@@ -56,10 +55,12 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
     msg << ", Expected " << params.size() << ", found " << args.size();
     throw evaluation_error(msg.str());
   }
-  auto f_env = closure; // create a copy of the closure to use when
-                        // evaluating the body
-  // arg list matches message: go through the list of provided arguments,
-  // evaluating each one and binding the result to the closure.
+  // make a copy of the captured environment to evaluate the function call
+  auto f_env = closure;
+
+  // evaluate the arguments and bind them to the function parameter names
+  // in the function environment
+
   auto arg = args.begin();
   for (auto par = params.begin(); par != params.end(); ++par, ++arg) {
     (*arg) = (*arg)->eval(env);
@@ -68,9 +69,6 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
   SExp *result;
   // evaluate the body of the function, returning the result of the last
   // expression
-  // note that the function body is evaluated in the scope captured by the
-  // lambda function,
-  // not the calling scope.
   for (auto it = body.begin(); it != body.end(); ++it) {
     result = (*it)->eval(f_env);
   }
@@ -92,8 +90,7 @@ void InPort::close() {
 
 InPort::~InPort() { this->close(); }
 
-// Allow three kinds of reading: the entire file as a string, one line at a
-// time, and one char at a time
+// read the entire file contents into a string
 SExp *InPort::read(Env &env) {
   // check the file state is ok before reading
   if (!stdin) {
@@ -122,10 +119,6 @@ SExp *InPort::read_ln(Env &env) {
     }
   }
   std::istream &in = stdin ? std::cin : file;
-  // this is exploiting the fact that the std::istreambuf_iterator's default
-  // constructor leaves it in
-  // the eof state, thus this will read from the file until eof is reached,
-  // constructing str as it does
   std::string str;
   std::getline(in, str);
   return env.allocate(new String(str));
@@ -133,8 +126,7 @@ SExp *InPort::read_ln(Env &env) {
 
 OutPort::OutPort(std::string name) : stdoutput(false), name(name) {
   // we want the file to be open as long as this object exists, so the program
-  // maintains
-  // control over thr resource
+  // maintains control over the resource
   file.open(name);
   if (!file.is_open()) {
     throw io_error("Cannot open file" + name);
@@ -159,8 +151,7 @@ SExp *OutPort::write(std::string str, Env &env) {
       throw io_error("Invalid write to closed file " + name);
     file << str;
   }
-  return env.lookup("null"); // TODO add a global null to the global scope
-                             // rather than  allocating each time?
+  return env.lookup("null");
 }
 
 void Representor::visit(Number &number) { stream << number.val(); }
@@ -225,7 +216,6 @@ void DisplayRepresentor::visit(List &list) {
   list.exec(repr);
 }
 
-// this is probably how the representor class will get used
 std::ostream &operator<<(std::ostream &os, SExp &sexp) {
   auto repr = Representor(os);
   sexp.exec(repr);

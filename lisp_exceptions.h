@@ -6,55 +6,42 @@
 
 // custom exceptions used by lisp.
 
-class parser_error : public std::exception {
+class lisp_error : public std::exception {
+private:
+  std::string msg;
+
 public:
   virtual const char *what() const throw() { return msg.c_str(); }
-  parser_error(int linenum, std::string msg_str = "Parse exception")
-      : linenum(linenum) {
-    msg = "[Line " + std::to_string(linenum) + "]: " + msg_str;
+  lisp_error(std::string default_msg, std::string err_msg = "") {
+    msg = default_msg + err_msg;
   }
-
-private:
-  std::string msg;
-  int linenum;
+  virtual ~lisp_error() {}
 };
 
-// These should never be thrown: if one of these is encountered, it means
-// something has gone wrong somewhere in my logic
-class implementation_error : public std::exception {
+class parser_error : public lisp_error {
 public:
-  virtual const char *what() const throw() { return msg.c_str(); }
-  implementation_error(std::string msg = "Implementation error") : msg(msg) {}
-
-private:
-  std::string msg;
+  parser_error(std::string msg) : lisp_error("Parser error: ", msg) {}
 };
 
-class evaluation_error : public std::exception {
+class implementation_error : public lisp_error {
 public:
-  virtual const char *what() const throw() { return msg.c_str(); }
-  evaluation_error(std::string msg = "runtime error") : msg(msg) {}
-
-private:
-  std::string msg;
+  implementation_error(std::string msg)
+      : lisp_error("Implementation error: ", msg) {}
 };
 
-class io_error : public std::exception {
+class evaluation_error : public lisp_error {
 public:
-  virtual const char *what() const throw() { return msg.c_str(); }
-  io_error(std::string msg = "io error") : msg(msg) {}
-
-private:
-  std::string msg;
+  evaluation_error(std::string msg) : lisp_error("Evaluation error: ", msg) {}
 };
 
-class exit_interpreter : public std::exception {
-  virtual const char *what() const throw() { return msg.c_str(); }
-
-private:
-  std::string msg;
-
+class io_error : public lisp_error {
 public:
-  exit_interpreter() : msg("") {}
+  io_error(std::string msg) : lisp_error("IO error: ", msg) {}
 };
+
+class exit_interpreter : public lisp_error {
+public:
+  exit_interpreter() : lisp_error("exit", "") {}
+};
+
 #endif
