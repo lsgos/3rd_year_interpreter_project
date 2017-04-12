@@ -1,6 +1,7 @@
 #include "env.h"
 #include "heap.h"
 #include "sexp.h"
+#include <typeinfo>
 
 Heap::Heap(Heap &&other) { objects = std::move(other.objects); }
 Heap &Heap::operator=(Heap other) {
@@ -63,17 +64,16 @@ void Heap::mark(SExp *addr) {
   }
   entry->second = true; // mark address as in use
 
-  auto expr_type = entry->first->type();
   // Lists and functions can contain references to other objects: we need
   // to mark the objects they reference as in use as well
 
-  if (expr_type == LispType::List) {
+  if (typeid(*addr) == typeid(List)) {
     auto list = static_cast<List *>(addr);
     for (auto it = list->elems.begin(); it != list->elems.end(); ++it) {
       mark(*it);
     }
   }
-  if (expr_type == LispType::LambdaFunction) {
+  if (typeid(*addr) == typeid(LambdaFunction)) {
     auto lambda = static_cast<LambdaFunction *>(addr);
     // mark the expressions in the function body
     for (auto obj = lambda->body.begin(); obj != lambda->body.end(); ++obj) {

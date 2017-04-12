@@ -1,6 +1,6 @@
-#include "sexp.h"
 #include "env.h"
 #include "lisp_exceptions.h"
+#include "sexp.h"
 #include <fstream>
 #include <list>
 #include <memory>
@@ -9,14 +9,10 @@
 // This is used to implement the 'truthy' behaviour of lisp: all expressions can
 // be substituted for booleans, and everything that isn't #f (false) is true
 bool is_true(SExp *exp) {
-  return !(exp->type() == LispType::Bool &&
-           static_cast<Bool *>(exp)->val() == false);
-}
-
-// helper functions allowing casts to the function abstract class
-bool is_function(LispType type) {
-  return (type == LispType::PrimitiveFunction ||
-          type == LispType::LambdaFunction);
+  Bool *bp = dynamic_cast<Bool *>(exp);
+  if (bp)
+    return bp->val();
+  return true;
 }
 
 SExp *Atom::eval(Env &env) {
@@ -37,10 +33,10 @@ SExp *List::eval(Env &env) {
   auto args = elems;
   args.pop_front(); // first argument is head
 
-  if (!is_function(head->type())) {
+  Function *func = dynamic_cast<Function *>(head);
+  if (!func) {
     throw evaluation_error("Expected function as first argument");
   }
-  auto func = static_cast<Function *>(head);
   SExp *result = func->call(args, env);
   return result;
 }
@@ -55,15 +51,14 @@ SExp *LambdaFunction::call(std::list<SExp *> args, Env &env) {
     msg << ", Expected " << params.size() << ", found " << args.size();
     throw evaluation_error(msg.str());
   }
-  // make a copy of the captured environment to evaluate the function call
-  auto f_env = closure;
+  // make a copy of the captured environment to evaluate the function
+  // call, then evaluate the arguments and bind them to the function
+  // parameter names in the copied environment
 
-  // evaluate the arguments and bind them to the function parameter names
-  // in the function environment
-
+  Env f_env = closure;
   auto arg = args.begin();
   for (auto par = params.begin(); par != params.end(); ++par, ++arg) {
-    (*arg) = (*arg)->eval(env);
+    *arg = (*arg)->eval(env);
     f_env.def(*par, *arg);
   }
   SExp *result;
@@ -101,10 +96,10 @@ SExp *InPort::read(Env &env) {
     }
   }
   std::istream &in = stdin ? std::cin : file;
-  // this is exploiting the fact that the std::istreambuf_iterator's default
-  // constructor leaves it in
-  // the eof state, thus this will read from the file until eof is reached,
-  // constructing str as it does
+  // this is exploiting the fact that the std::istreambuf_iterator's
+  // default constructor leaves it in the eof state, thus this will read
+  // from the file until eof is reached, constructing str as it does
+
   auto str = std::string((std::istreambuf_iterator<char>(in)),
                          std::istreambuf_iterator<char>());
   return env.allocate(new String(str));

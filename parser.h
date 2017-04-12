@@ -16,6 +16,7 @@ public:
   Parser(std::istream &instream) : lexer(Lexer(instream)) {}
   SExp *read_sexp(Env &env);
   int get_linenum() { return lexer.get_linenum(); }
+  int get_linepos() { return lexer.get_linepos(); }
 private:
   SExp *parse(Env &env, Token token);
   Lexer lexer;

@@ -6,6 +6,7 @@ Token Lexer::get_token() {
 
   consume_spaces();
   auto c = stream.get();
+  linepos++;
   if (c == '(') {
     return Token::open_bracket;
   } else if (c == ')') {
@@ -33,13 +34,18 @@ Token Lexer::get_token() {
 // counter.
 void Lexer::consume_spaces() {
   char c = stream.get();
+  linepos++;
   while (std::isspace(c)) {
     if (c == newline) {
       ++linenum;
+      linepos=1;
     }
     c = stream.get();
+    linepos++;
   }
+  
   stream.putback(c);
+  linepos--;
   return;
 }
 // called when the comment character ; is encountered: ignore everything until a
@@ -48,10 +54,12 @@ void Lexer::consume_comment() {
   for (char c = stream.get(); c != newline; c = stream.get()) {
   	if (c == EOF) { 
   		stream.putback(c);
+  		linepos--;
   		break;
   	}
   }
   linenum++;
+  linepos = 1;
   return;
 }
 Token Lexer::lisp_number(char c) {
@@ -60,9 +68,11 @@ Token Lexer::lisp_number(char c) {
   if (c == '-') {
     buf.put(c);
     c = stream.get();
+    linepos++;
   }
 
   for (; isdigit(c); c = stream.get()) {
+  	linepos++;
     if (c == EOF) {
       throw parser_error("Reached unexpected end-of-file "
                                   "while parsing numeric literal");
@@ -72,6 +82,7 @@ Token Lexer::lisp_number(char c) {
   if (c == '.') {
     buf.put('.');
     for (c = stream.get(); isdigit(c); c = stream.get()) {
+      linepos++;
       if (c == EOF) {
         throw parser_error("Reached unexpected "
                                     "end-of-file while parsing "
@@ -90,10 +101,12 @@ Token Lexer::lisp_number(char c) {
     std::string atom = buf.str();
     for (auto it = atom.rbegin(); it != atom.rend(); ++it) {
       stream.putback(*it);
+      linepos--;
     }
     return lisp_atom(stream.get());
   }
   stream.putback(c);
+  linepos--;
   buf >> parsed_num;
   return Token::num;
 }
@@ -101,7 +114,7 @@ Token Lexer::lisp_string(char c) {
 
   auto buf = std::stringstream("");
   for (c = stream.get(); c != '\"'; c = stream.get()) {
-
+	linepos++;
     if (c == '\\') {
       // allow escaped special characters, like ", \n, etc
       char esc = stream.get();
@@ -140,15 +153,19 @@ Token Lexer::lisp_string(char c) {
 Token Lexer::lisp_atom(char c) {
   auto buf = std::stringstream("");
   for (; is_lisp_symbol(c) || isdigit(c) || c == '.'; c = stream.get()) {
+  	linepos++;
     buf.put(c);
   }
   stream.putback(c);
+  linepos--;
   std::string str = buf.str();
   parsed_str = str;
   return Token::atom;
 }
 Token Lexer::lisp_bool(char c) {
   int b = stream.get();
+  linepos++;
+  
   char peek = stream.peek();
   if (!(is_delim(peek) || peek == ')')) {
     throw parser_error(
@@ -172,5 +189,5 @@ bool Lexer::is_lisp_symbol(char c) {
           c == ':' || c == '<' || c == '>' || c == '=' || c == '?' ||
           c == '@' || c == '^' || c == '_' || c == '~');
 }
-// valid
+// valid delimeters
 bool Lexer::is_delim(char c) { return (std::isspace(c) || c == EOF); }

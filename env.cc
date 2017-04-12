@@ -17,13 +17,16 @@ SExp *GlobalEnv::mk_numeric_primitive(
                   [&](SExp *&a) { a = a->eval(env); });
     double acc;
     for (auto it = args.begin(); it != args.end(); ++it) {
-      if ((*it)->type() != LispType::Number) {
+    
+      Number* nptr = dynamic_cast<Number *>(*it);
+         
+      if (!nptr) {
         throw evaluation_error("Non numeric arguments "
                                "encountered in "
                                "function " +
                                funcname);
       }
-      double num = (static_cast<Number *>(*it))->val();
+      double num = nptr->val();
 
       if (it == args.begin()) {
         acc = num;
@@ -106,6 +109,15 @@ void GlobalEnv::bind_primitives() {
   def("port->string", mk_builtin(port_to_string, "port->string"));
   def("read", mk_builtin(read, "read"));
   return;
+}
+
+// bind command line arguments when a script is called to a list
+void GlobalEnv::bind_argv(int argc, char *argv[]) {
+  std::list<SExp *> arglist;
+  for (int i = 1; i < argc; i++) {
+    arglist.push_back(heap.allocate(new String(argv[i])));
+  }
+  def("ARGV", heap.allocate(new List(arglist)));
 }
 
 GlobalEnv::~GlobalEnv() {}

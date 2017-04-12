@@ -15,7 +15,12 @@ In the cases where the token has an associated unique value, such
 as a number or a string, this is stored in the lexer, and must
 be retrieved from it using the accessor functions by the parser
 when it encounters a appropriate symbol.
+
+The lexer tracks the current line and position in the file it's
+reading, which is used to provide more helpful error reporting. It's
+only approximatly accurate for non-parser errors. 
 */
+
 
 enum class Token {
   // lexer tokens: the things that we can encounter in our language.
@@ -36,14 +41,16 @@ public:
   std::string parsed_str;
   double parsed_num;
   
-  Lexer(std::istream &stream) : stream(stream), linenum(1) {}
+  Lexer(std::istream &stream) : stream(stream), linenum(1), linepos(1) {}
   std::string get_parsed_str() { return parsed_str; }
   double get_parsed_num() { return parsed_num; }
   int get_linenum() { return linenum; }
+  int get_linepos() { return linepos; }
   Token get_token();
 
 private:
   int linenum;
+  int linepos;
   void consume_comment();
   void consume_spaces();
   Token lisp_number(char c);

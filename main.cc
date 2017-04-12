@@ -13,16 +13,22 @@ This is fairly simple as all the heavy lifting is done in the classes.
 
 // TODO attempt to remove all duplicated includes from the header files
 
+/*
+If this program is called with no arguments, launch a
+read-eval-print-loop, where commands are interpreted and the results
+printed interactively
+*/
+
 int repl() {
-  auto p = Parser(std::cin);
+  auto psr = Parser(std::cin);
   GlobalEnv env;
   while (true) {
     try {
       std::cout << " <<=  ";
-      auto sexp = p.read_sexp(env);
+      auto sexp = psr.read_sexp(env);
       if (!sexp) {
-      	//EOF character: exit the interpreter
-      	throw exit_interpreter();
+        // EOF character: exit the interpreter
+        throw exit_interpreter();
       }
       sexp = sexp->eval(env);
       std::cout << " --> " << *sexp << std::endl;
@@ -38,7 +44,18 @@ int repl() {
   return 0;
 }
 
-int script(char *filename) {
+/*
+If the program is called with arguments, the first argument is interpreted
+as a filename for the a script, and the script is opened and the results
+interpreted. In this mode, results of expressions are
+not printed to the screen by default as in the repl and error
+reporting includes the location in the file where the error occurred.
+If there are more commands in argv, they are made avaliable to the
+script as a list of strings iin the variable ARGV.
+*/
+
+int script(int argc, char *argv[]) {
+  char *filename = argv[1];
 
   std::ifstream file;
   file.open(filename);
@@ -46,20 +63,24 @@ int script(char *filename) {
     std::cout << "Couldn't open file " << filename << std::endl;
     return 1;
   }
-  auto p = Parser(file);
+  auto psr = Parser(file);
   GlobalEnv env;
-  SExp *exp = p.read_sexp(env);
+  env.bind_argv(argc, argv);
+
+  SExp *exp = psr.read_sexp(env);
   while (file.good()) {
     try {
       exp->eval(env);
       env.collect_garbage();
-      exp = p.read_sexp(env);
+      exp = psr.read_sexp(env);
 
     } catch (exit_interpreter &e) {
       return 0;
     } catch (std::exception &e) {
-    //if an error occurs, report the file and the line so the user can find it easily
-      std::cout << "["<< filename << ":"<< p.get_linenum() << "] "<< e.what() << std::endl;
+      // if an error occurs, report the file and the line so the user can find
+      // it easily
+      std::cout << "[" << filename << ":" << psr.get_linenum() << ":" << psr.get_linepos() <<"] "
+                << e.what() << std::endl;
       return 1;
     }
   }
@@ -70,11 +91,7 @@ int main(int argc, char *argv[]) {
 
   if (argc == 1) {
     return repl();
-  } else if (argc == 2) {
-    return script(argv[1]);
   } else {
-    std::cout << "Please provide only one or two arguments" << std::endl;
-    // todo: pass the rest into the program as parameters?
-    return 1;
+    return script(argc, argv);
   }
 }

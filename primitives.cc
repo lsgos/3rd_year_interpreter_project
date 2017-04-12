@@ -1,6 +1,7 @@
-#include "primitives.h"
 #include "parser.h"
+#include "primitives.h"
 #include <algorithm>
+#include <typeinfo>
 
 SExp *primitive::cons(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
@@ -13,14 +14,16 @@ SExp *primitive::cons(std::list<SExp *> args, Env &env) {
   SExp *car = args.front();
   args.pop_front();
   SExp *cdr = args.front();
-  if (cdr->type() != LispType::List) {
+
+  List *lp = dynamic_cast<List *>(cdr);
+
+  if (!lp) {
     throw evaluation_error("Cannot cons onto a non-list "
                            "type [expected: (cons T "
                            "list)]");
   }
 
-  auto list_cdr = static_cast<List *>(cdr);
-  std::list<SExp *> cons_list = list_cdr->elems;
+  std::list<SExp *> cons_list = lp->elems;
   cons_list.push_front(car);
   return env.allocate(new List(cons_list));
 }
@@ -29,12 +32,14 @@ SExp *primitive::car(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in primitive car");
   }
-  SExp *ls = args.front();
-  ls = ls->eval(env);
-  if (ls->type() != LispType::List) {
+  SExp *arg = args.front();
+  arg = arg->eval(env);
+
+  List *lp = dynamic_cast<List *>(arg);
+  if (!lp) {
     throw evaluation_error("Cannot ask for the car of a non-list");
   }
-  auto elems = static_cast<List *>(ls)->elems;
+  auto elems = lp->elems;
   if (elems.empty()) {
     throw evaluation_error("Cannot ask for the car of an empty list");
   }
@@ -48,8 +53,9 @@ SExp *primitive::isnull(std::list<SExp *> args, Env &env) {
     throw evaluation_error("Incorrect number of arguments in functino null?");
   } else {
     SExp *obj = args.front()->eval(env);
-    if (obj->type() == LispType::List &&
-        static_cast<List *>(obj)->elems.empty()) {
+    List *lp = dynamic_cast<List *>(obj);
+
+    if (lp && lp->elems.empty()) {
       result = true;
     }
     return env.allocate(new Bool(result));
@@ -60,12 +66,12 @@ SExp *primitive::cdr(std::list<SExp *> args, Env &env) {
   if (args.size() != 1) {
     throw evaluation_error("Incorrect number of arguments in primitive cdr");
   }
-  SExp *ls = args.front();
-  ls = ls->eval(env);
-  if (ls->type() != LispType::List) {
+  SExp *obj = args.front()->eval(env);
+  List *lp = dynamic_cast<List *>(obj);
+  if (!lp) {
     throw evaluation_error("Cannot ask for the cdr of a non list type");
   }
-  auto elems = static_cast<List *>(ls)->elems; // copy list of object
+  auto elems = lp->elems; // copy list of object
   if (elems.empty()) {
     throw evaluation_error("Cannot ask for the cdr of a empty list");
   }
@@ -86,13 +92,13 @@ SExp *primitive::define(std::list<SExp *> args, Env &env) {
     throw evaluation_error("Incorrect number of arguments in primitive "
                            "define: expected two");
   }
-  auto atom = args.front();
+  Atom *ap = dynamic_cast<Atom *>(args.front());
   args.pop_front();
-  if (atom->type() != LispType::Atom) {
+  if (!ap) {
     throw evaluation_error("Expected atomic symbol as "
                            "first argument to define");
   }
-  std::string id = static_cast<Atom *>(atom)->get_identifier();
+  std::string id = ap->get_identifier();
   auto value = args.front();
   value = value->eval(env);
   env.def(id, value);
@@ -100,35 +106,23 @@ SExp *primitive::define(std::list<SExp *> args, Env &env) {
 }
 
 SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
-  // lambda is a special form: evaluate the first argument, but
-  // none of the others.
 
   if (args.size() < 2) {
     throw evaluation_error("Too few arguments in call to lambda");
   }
-  // first argument to lambda must be either a list of atoms or a
-  // single
-  // atom
-  SExp *first = args.front();
+
+  List *list = dynamic_cast<List *>(args.front());
   args.pop_front();
-  LispType param_type = first->type();
-  // this will be used to construct the lambda
+
   std::list<std::string> param_list;
-  if (param_type == LispType::Atom) {
 
-    auto at = static_cast<Atom *>(first);
-    param_list.push_back(at->get_identifier());
-
-  } else if (param_type == LispType::List) {
+  if (list) {
 
     // check f it's a list of atoms
-    auto list = static_cast<List *>(first);
-
     for (auto it = list->elems.begin(); it != list->elems.end(); ++it) {
-      if ((*it)->type() == LispType::Atom) {
-
-        auto at = static_cast<Atom *>(*it);
-        param_list.push_back(at->get_identifier());
+      Atom *atp = dynamic_cast<Atom *>(*it);
+      if (atp) {
+        param_list.push_back(atp->get_identifier());
 
       } else {
         throw evaluation_error("Error in arguments to lambda: "
@@ -138,11 +132,10 @@ SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
       }
     }
   } else {
-    // not valid:
     throw evaluation_error("Error in first argument to lambda: expected "
-                           "identifier or list of identifiers");
+                           "list of identifiers");
   }
-  // capture scopemm
+
   Env closure = env.capture_scope();
   return env.allocate(new LambdaFunction(closure, param_list, args));
 }
@@ -177,18 +170,21 @@ SExp *primitive::numeric_eq(std::list<SExp *> args, Env &env) {
   }
   bool result = true;
   SExp *first = args.front()->eval(env);
-  if (first->type() != LispType::Number) {
+  Number *np = dynamic_cast<Number *>(first);
+  if (!np) {
     throw evaluation_error("Found non numeric arguments in function =");
   }
-  double last = static_cast<Number *>(first)->val();
+  double comp = np->val();
+
   for (auto it = args.begin()++; it != args.end(); ++it) {
-    (*it) = (*it)->eval(env);
-    if ((*it)->type() != LispType::Number) {
+
+    np = dynamic_cast<Number *>((*it)->eval(env));
+    if (!np) {
       throw evaluation_error("Found non numeric "
                              "arguments in function "
                              "=");
     }
-    if (last != static_cast<Number *>(*it)->val()) {
+    if (comp != np->val()) {
       result = false;
       break;
     }
@@ -197,7 +193,7 @@ SExp *primitive::numeric_eq(std::list<SExp *> args, Env &env) {
 }
 SExp *primitive::eq(std::list<SExp *> args, Env &env) {
   // This is slightly different from the canonical lisp eq, which
-  // compares for pointer equality. This is actually more like 
+  // compares for pointer equality. This is actually more like
   // the function eqv, which is more sensible
 
   if (args.size() != 2) {
@@ -212,32 +208,26 @@ SExp *primitive::eq(std::list<SExp *> args, Env &env) {
   auto arg1 = args.front();
   args.pop_front();
   auto arg2 = args.front();
-  auto type1 = arg1->type();
-  auto type2 = arg2->type();
+  // here we need to use the hash for the type rather than the type_info class
+  // itself because the type_info class has no public copy/move constructors
+  auto type1 = typeid(*arg1).hash_code();
+  auto type2 = typeid(*arg2).hash_code();
+
   if (type1 != type2) {
     result = false;
-  }
-  switch (type1) {
-  case LispType::Number:
+  } else if (type1 == typeid(Number).hash_code()) {
     result = (static_cast<Number *>(arg1)->val() ==
               static_cast<Number *>(arg2)->val());
-    break;
-  case LispType::String:
+  } else if (type1 == typeid(String).hash_code()) {
     result = (static_cast<String *>(arg1)->val() ==
               static_cast<String *>(arg2)->val());
-    break;
-  case LispType::Bool:
+  } else if (type1 == typeid(Bool).hash_code()) {
     result =
         (static_cast<Bool *>(arg1)->val() == static_cast<Bool *>(arg2)->val());
-    break;
-  case LispType::PrimitiveFunction:
-    result = (arg1 == arg2);
-    break;
-  default:
-    // all other types are compound: these are covered by
-    // equal?, so just compare pointer equality
+  } else {
     result = (arg1 == arg2);
   }
+
   return env.allocate(new Bool(result));
 }
 
@@ -260,7 +250,8 @@ SExp *primitive::is_number(std::list<SExp *> args, Env &env) {
     throw evaluation_error("Incorrect number of arguments in function number?");
   }
   bool result = false;
-  if (args.front()->type() == LispType::Number) {
+  SExp *arg = args.front();
+  if (typeid(*arg) == typeid(Number)) {
     result = true;
   }
   return env.allocate(new Bool(result));
@@ -272,11 +263,12 @@ SExp *primitive::open_output_port(std::list<SExp *> args, Env &env) {
         "Invalid number of arguments in function open-output-port");
   }
   SExp *fname = args.front()->eval(env);
-  if (fname->type() != LispType::String) {
+  String *sp = dynamic_cast<String *>(fname);
+  if (!sp) {
     throw evaluation_error(
         "Invalid argument to function open-output-port: expected string");
   }
-  std::string name = static_cast<String *>(fname)->val();
+  std::string name = sp->val();
 
   try {
     return env.allocate(new OutPort(name));
@@ -293,11 +285,13 @@ SExp *primitive::open_input_port(std::list<SExp *> args, Env &env) {
         "Invalid number of arguments in function open-output-port");
   }
   SExp *fname = args.front()->eval(env);
-  if (fname->type() != LispType::String) {
+  String *sp = dynamic_cast<String *>(fname);
+
+  if (!sp) {
     throw evaluation_error(
         "Invalid argument to function open-output-port: expected string");
   }
-  std::string name = static_cast<String *>(fname)->val();
+  std::string name = sp->val();
 
   try {
     return env.allocate(new InPort(name));
@@ -314,11 +308,13 @@ SExp *primitive::close_input_port(std::list<SExp *> args, Env &env) {
         "Incorrect number of arguments in function close-output-port");
   }
   SExp *arg = args.front()->eval(env);
-  if (arg->type() != LispType::InPort) {
+  InPort *ip = dynamic_cast<InPort *>(arg);
+
+  if (!ip) {
     throw evaluation_error(
         "Invalid call of close-outport-port on non output port type");
   }
-  static_cast<InPort *>(arg)->close();
+  ip->close();
   return env.lookup("null");
 }
 
@@ -329,12 +325,13 @@ SExp *primitive::port_to_string(std::list<SExp *> args, Env &env) {
         "Incorrect number of arguments in function port->string");
   }
   SExp *arg = args.front()->eval(env);
-  if (arg->type() != LispType::InPort) {
+  InPort *ip = dynamic_cast<InPort *>(arg);
+  if (!ip) {
     throw evaluation_error(
         "Type error: expected a port in function port->string");
   }
   try {
-    return static_cast<InPort *>(arg)->read(env);
+    return ip->read(env);
   } catch (io_error e) {
     return env.allocate(new Bool(false)); // return false if nothing can be read
   }
@@ -356,8 +353,8 @@ SExp *primitive::display(std::list<SExp *> args, Env &env) {
     throw evaluation_error(
         "Invalid number of arguments to builtin define: expected 1 or 2");
   }
-  if (output_port->type() != LispType::OutPort) {
-    std::cout << int(output_port->type());
+  OutPort *op = dynamic_cast<OutPort *>(output_port);
+  if (!op) {
     throw evaluation_error(
         "Cannot write to a non-port type: expected output-port");
   }
@@ -366,7 +363,7 @@ SExp *primitive::display(std::list<SExp *> args, Env &env) {
   auto repr = DisplayRepresentor(buf);
   msg->exec(repr);
 
-  static_cast<OutPort *>(output_port)->write(buf.str(), env);
+  op->write(buf.str(), env);
   return env.lookup("null");
 }
 SExp *primitive::displayln(std::list<SExp *> args, Env &env) {
@@ -386,8 +383,8 @@ SExp *primitive::displayln(std::list<SExp *> args, Env &env) {
     throw evaluation_error(
         "Invalid number of arguments to builtin define: expected 1 or 2");
   }
-  if (output_port->type() != LispType::OutPort) {
-    std::cout << int(output_port->type());
+  OutPort *op = dynamic_cast<OutPort *>(output_port);
+  if (!op) {
     throw evaluation_error(
         "Cannot write to a non-port type: expected output-port");
   }
@@ -396,8 +393,8 @@ SExp *primitive::displayln(std::list<SExp *> args, Env &env) {
   auto repr = DisplayRepresentor(buf);
   msg->exec(repr);
 
-  static_cast<OutPort *>(output_port)->write(buf.str(), env);
-  static_cast<OutPort *>(output_port)->write("\n", env);
+  op->write(buf.str(), env);
+  op->write("\n", env);
 
   return env.lookup("null");
 }
@@ -407,11 +404,12 @@ SExp *primitive::close_output_port(std::list<SExp *> args, Env &env) {
         "Incorrect number of arguments in function close-output-port");
   }
   SExp *arg = args.front()->eval(env);
-  if (arg->type() != LispType::OutPort) {
+  OutPort *op = dynamic_cast<OutPort *>(arg);
+  if (!op) {
     throw evaluation_error(
         "Invalid call of close-outport-port on non output port type");
   }
-  static_cast<OutPort *>(arg)->close();
+  op->close();
   return env.lookup("null");
 }
 
@@ -419,16 +417,22 @@ SExp *primitive::modulo(std::list<SExp *> args, Env &env) {
   if (args.size() != 2) {
     throw evaluation_error("Invalid number of arguments in function %");
   }
+  std::for_each(args.begin(), args.end(),
+                [&env](SExp *&a) { a = a->eval(env); });
 
-  for (auto it = args.begin(); it != args.end(); ++it) {
-    (*it) = (*it)->eval(env);
-    if ((*it)->type() != LispType::Number) {
-      throw evaluation_error("Encountered non-numeric arguments in function %");
-    }
+  Number *np;
+  np = dynamic_cast<Number *>(args.front());
+  double argument = np->val();
+  if (!np) {
+    throw evaluation_error("Encountered non-numeric arguments in function %");
   }
-  double argument = static_cast<Number *>(args.front())->val();
   args.pop_front();
-  double mod = static_cast<Number *>(args.front())->val();
+
+  np = dynamic_cast<Number *>(args.front());
+  double mod = np->val();
+  if (!np) {
+    throw evaluation_error("Encountered non-numeric arguments in function %");
+  }
   double result = std::fmod(argument, mod);
   return env.allocate(new Number(result));
 }
@@ -491,18 +495,18 @@ SExp *primitive::map(std::list<SExp *> args, Env &env) {
   }
   // evaluate arguments
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
-
-  if (!is_function(args.front()->type())) {
+  Function *func = dynamic_cast<Function *>(args.front());
+  if (!func) {
     throw evaluation_error(
         "Illegal first argument in function map: expected function");
   }
-  Function *func = static_cast<Function *>(args.front());
+
   args.pop_front();
-  if (args.front()->type() != LispType::List) {
+  List *list = dynamic_cast<List *>(args.front());
+  if (!list) {
     throw evaluation_error(
         "Illegal second argument in function map: expected list");
   }
-  List *list = static_cast<List *>(args.front());
 
   std::list<SExp *> elements = list->elems;
   // apply the function func to every element in the list
@@ -518,18 +522,17 @@ SExp *primitive::filter(std::list<SExp *> args, Env &env) {
   }
   // evaluate arguments
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
-
-  if (!is_function(args.front()->type())) {
+  Function *pred = dynamic_cast<Function *>(args.front());
+  if (!pred) {
     throw evaluation_error(
         "Illegal first argument in function filter: expected function");
   }
-  Function *pred = static_cast<Function *>(args.front());
   args.pop_front();
-  if (args.front()->type() != LispType::List) {
+  List *list = dynamic_cast<List *>(args.front());
+  if (!list) {
     throw evaluation_error(
         "Illegal second argument in function filter: expected list");
   }
-  List *list = static_cast<List *>(args.front());
 
   std::list<SExp *> elements = list->elems;
 
@@ -561,21 +564,21 @@ SExp *primitive::fold(std::list<SExp *> args, Env &env) {
   // evaluate arguments
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
 
-  if (!is_function(args.front()->type())) {
+  Function *func = dynamic_cast<Function *>(args.front());
+  if (!func) {
     throw evaluation_error(
         "Illegal first argument in function fold: expected function");
   }
-  Function *func = static_cast<Function *>(args.front());
   args.pop_front();
 
   SExp *init = args.front(); // the initial accumulator can be of any type
   args.pop_front();
 
-  if (args.front()->type() != LispType::List) {
+  List *list = dynamic_cast<List *>(args.front());
+  if (!list) {
     throw evaluation_error(
         "Illegal second argument in function fold: expected list");
   }
-  List *list = static_cast<List *>(args.front());
 
   std::list<SExp *> elements = list->elems;
 
@@ -603,10 +606,11 @@ SExp *primitive::read(std::list<SExp *> args, Env &env) {
         "Invalid number of arguments in function read: expected 1");
   }
   auto arg = args.front()->eval(env);
-  if (arg->type() != LispType::String) {
+  String *sp = dynamic_cast<String *>(arg);
+  if (!sp) {
     throw evaluation_error("Cannot read a non-string type");
   }
-  std::string str = static_cast<String *>(arg)->val();
+  std::string str = sp->val();
 
   // try to parse the string as an s-expression, returning its value
   // this function is problematic since there is basically no sensible

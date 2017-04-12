@@ -30,19 +30,6 @@ class LambdaFunction;
 class InPort;
 class OutPort;
 
-enum class LispType {
-  Number,
-  String,
-  Bool,
-  Atom,
-  List,
-  PrimitiveFunction,
-  LambdaFunction,
-  InPort,
-  OutPort,
-};
-
-bool is_function(LispType type);
 bool is_true(SExp *);
 // Visitor function. This allows classes that recurse through sexp
 // trees changing the internal state of the visitor class. At
@@ -72,14 +59,6 @@ public:
   // a new value constructed by function evaluation (for lists).
   // Garbage collection is handled by the Env class
   virtual SExp *eval(Env &env) = 0;
-  // returns an enum value giving which subclass of SExp an instantiation
-  // of this interface actually is. This is needed when one
-  // expects a specific type (e.g numbers for numeric
-  // primitives, functions for function application) and
-  // one has to downcast to the type from the generic in
-  // order to extract its data. Checking with this first
-  // preserves safety
-  virtual LispType type() const = 0;
   virtual ~SExp() {}
 };
 
@@ -88,32 +67,31 @@ public:
 // so most of the boilerplate of creating these classes can be abstracted to a
 // template. The intantiated templates have to implement the exec visitor
 // function though
-template <typename T, LispType kind> class PrimitiveType : public SExp {
+template <typename T> class PrimitiveType : public SExp {
   const T value;
 
 public:
-  PrimitiveType<T, kind>(T value) : value(value) {}
+  PrimitiveType<T>(T value) : value(value) {}
   ~PrimitiveType() {}
   T val() { return value; }
-  LispType type() const override { return kind; }
   virtual SExp *eval(Env &env) override { return this; }
 };
 
-class Number : public PrimitiveType<double, LispType::Number> {
+class Number : public PrimitiveType<double> {
 public:
-  Number(double x) : PrimitiveType<double, LispType::Number>(x) {}
+  Number(double x) : PrimitiveType<double>(x) {}
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
 };
 
-class String : public PrimitiveType<std::string, LispType::String> {
+class String : public PrimitiveType<std::string> {
 public:
-  String(std::string str) : PrimitiveType<std::string, LispType::String>(str) {}
+  String(std::string str) : PrimitiveType<std::string>(str) {}
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
 };
 
-class Bool : public PrimitiveType<bool, LispType::Bool> {
+class Bool : public PrimitiveType<bool> {
 public:
-  Bool(bool x) : PrimitiveType<bool, LispType::Bool>(x) {}
+  Bool(bool x) : PrimitiveType<bool>(x) {}
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
 };
 
@@ -128,7 +106,6 @@ public:
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
   std::string get_identifier() { return id; }
   virtual SExp *eval(Env &env) override;
-  LispType type() const override { return LispType::Atom; }
 
 private:
   const std::string id;
@@ -143,7 +120,6 @@ public:
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
   const std::list<SExp *> elems;
   virtual SExp *eval(Env &env) override;
-  LispType type() const override { return LispType::List; }
   ~List() override {}
   List() {}
 };
@@ -172,8 +148,6 @@ public:
   virtual SExp *call(std::list<SExp *> args, Env &env) override {
     return fn(args, env);
   }
-  LispType type() const override { return LispType::PrimitiveFunction; }
-
   ~PrimitiveFunction() override {}
 };
 
@@ -190,7 +164,6 @@ public:
   LambdaFunction(Env env, std::list<std::string> params, std::list<SExp *> body)
       : closure(env), params(params), body(body) {}
   virtual SExp *call(std::list<SExp *> args, Env &env) override;
-  LispType type() const override { return LispType::LambdaFunction; }
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
   SExp *eval(Env &env) override { return this; }
   ~LambdaFunction() override {}
@@ -211,7 +184,6 @@ private:
 public:
   InPort() : stdin(true) {}
   InPort(std::string name);
-  LispType type() const override { return LispType::InPort; }
   SExp *read(Env &env);
   SExp *read_ln(Env &env);
   SExp *eval(Env &env) override { return this; }
@@ -230,7 +202,6 @@ private:
 public:
   OutPort() : stdoutput(true), name("stdout") {}
   OutPort(std::string name);
-  LispType type() const override { return LispType::OutPort; }
   SExp *write(std::string, Env &env);
   SExp *eval(Env &env) override { return this; }
   void exec(SExpVisitor &visitor) override { visitor.visit(*this); }
