@@ -1,6 +1,10 @@
 /*
-The main loop of the program, defining the entry point for the application.
-This is fairly simple as all the heavy lifting is done in the classes.
+The main loop of the program, defining the entry point for the
+application. This is fairly simple as all the heavy lifting is done in
+the classes. The main distinction here is whether the program starts
+as a REPL, or, if it is passed command line arguments, tries to
+open a file and interpret it as a script.
+
 */
 #include <fstream>
 #include <iostream>
@@ -10,8 +14,6 @@ This is fairly simple as all the heavy lifting is done in the classes.
 #include "lisp_exceptions.h"
 #include "parser.h"
 #include "sexp.h"
-
-// TODO attempt to remove all duplicated includes from the header files
 
 /*
 If this program is called with no arguments, launch a
@@ -51,7 +53,7 @@ interpreted. In this mode, results of expressions are
 not printed to the screen by default as in the repl and error
 reporting includes the location in the file where the error occurred.
 If there are more commands in argv, they are made avaliable to the
-script as a list of strings iin the variable ARGV.
+script as a list of strings in the variable ARGV.
 */
 
 int script(int argc, char *argv[]) {
@@ -79,8 +81,10 @@ int script(int argc, char *argv[]) {
     } catch (std::exception &e) {
       // if an error occurs, report the file and the line so the user can find
       // it easily
-      std::cout << "[" << filename << ":" << psr.get_linenum() << ":" << psr.get_linepos() <<"] "
-                << e.what() << std::endl;
+      std::cout << "[" << 
+      filename << ":"  <<  psr.get_linenum()<<  ":" << psr.get_linepos() <<
+      "] "
+      << e.what() << std::endl;
       return 1;
     }
   }

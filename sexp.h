@@ -50,7 +50,8 @@ public:
 // abstract class representing list data
 class SExp {
 public:
-  // a function allowing visitor classes
+  // a function allowing visitor classes to dispatch
+  // methods based on the underlying type of the expression
   virtual void exec(SExpVisitor &visitor) = 0;
   // eval returns a pointer to an SExp containing the
   // value of the lisp expression. May be the same as the

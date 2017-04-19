@@ -22,18 +22,22 @@ only approximatly accurate for non-parser errors.
 */
 
 
+
+/*
+Lexer tokens represent the distinct syntactic classes we can encounter in our input.
+*/
 enum class Token {
-  // lexer tokens: the things that we can encounter in our language.
   eof,
   open_bracket,
   close_bracket,
-  kw_quote, //' backtick syntactic sugar
-  kw_true,
-  kw_false,
-  atom,   // atomic identifier
-  num,    // double
-  string, // string literals
+  kw_quote,		//' backtick syntactic sugar
+  kw_true,		//#t
+  kw_false,		//#f
+  atom,			// atomic identifier
+  num,			// double
+  string,		// string literals
 };
+
 
 class Lexer {
 public:
@@ -42,15 +46,19 @@ public:
   double parsed_num;
   
   Lexer(std::istream &stream) : stream(stream), linenum(1), linepos(1) {}
+  
+  //return the last string or numeric literal parsed by the lexer
   std::string get_parsed_str() { return parsed_str; }
   double get_parsed_num() { return parsed_num; }
   int get_linenum() { return linenum; }
   int get_linepos() { return linepos; }
+  
+  //return the next token from the stream the lexer is processing
   Token get_token();
 
 private:
-  int linenum;
-  int linepos;
+  int linenum; //current line number of the stream
+  int linepos; //current position in the line 
   void consume_comment();
   void consume_spaces();
   Token lisp_number(char c);

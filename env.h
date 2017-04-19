@@ -17,8 +17,7 @@ The GlobalEnv also contains a heap object, which manages memory
 
 class Env {
 private:
-  // may have to make Env an abstract class: think the attempt to inherit this
-  // field is causing us problems
+
   GlobalEnv *const global;
 
 protected:
