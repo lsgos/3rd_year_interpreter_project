@@ -68,25 +68,23 @@ int script(int argc, char *argv[]) {
   auto psr = Parser(file);
   GlobalEnv env;
   env.bind_argv(argc, argv);
+  try {
 
-  SExp *exp = psr.read_sexp(env);
-  while (file.good()) {
-    try {
+    SExp *exp = psr.read_sexp(env);
+    while (file.good()) {
+
       exp->eval(env);
       env.collect_garbage();
       exp = psr.read_sexp(env);
-
-    } catch (exit_interpreter &e) {
-      return 0;
-    } catch (std::exception &e) {
-      // if an error occurs, report the file and the line so the user can find
-      // it easily
-      std::cout << "[" << 
-      filename << ":"  <<  psr.get_linenum()<<  ":" << psr.get_linepos() <<
-      "] "
-      << e.what() << std::endl;
-      return 1;
     }
+  } catch (exit_interpreter &e) {
+    return 0;
+  } catch (std::exception &e) {
+    // if an error occurs, report the file and the line so the user can find
+    // it easily
+    std::cout << "[" << filename << ":" << psr.get_linenum() << ":"
+              << psr.get_linepos() << "] " << e.what() << std::endl;
+    return 1;
   }
   return 0;
 }

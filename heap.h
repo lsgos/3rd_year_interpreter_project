@@ -11,7 +11,7 @@ class SExp;
 /*
 The heap class is responsible for garbage collection, maintaining a
 record of all memory adresses in current use. The most important
-function is allocate. This maps calls to new within s-expression
+function is manage. This maps calls to new within s-expression
 logic. Any object that is created in this way is then managed by the
 garbage collector. collect_garbage deletes any memory not in use by
 using a mark-and-sweep algorithm from the symbol table to determine
@@ -30,8 +30,9 @@ private:
   	std::swap(a.objects, b.objects);
   }
 public:
-  SExp *allocate(SExp *new_object);
+  SExp *manage(SExp *new_object);
   void collect_garbage(Env &env);
+  
   Heap() {}
   Heap(Heap &&other);
   // Move assignment operator.

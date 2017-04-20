@@ -13,15 +13,15 @@ SExp *Parser::parse(Env &env, Token token) {
   case Token::open_bracket:
     return parse_list(env);
   case Token::num:
-    return env.allocate(new Number(lexer.get_parsed_num()));
+    return env.manage(new Number(lexer.get_parsed_num()));
   case Token::string:
-    return env.allocate(new String(lexer.get_parsed_str()));
+    return env.manage(new String(lexer.get_parsed_str()));
   case Token::atom:
-    return env.allocate(new Atom(lexer.get_parsed_str()));
+    return env.manage(new Atom(lexer.get_parsed_str()));
   case Token::kw_true:
-    return env.allocate(new Bool(true));
+    return env.manage(new Bool(true));
   case Token::kw_false:
-    return env.allocate(new Bool(false));
+    return env.manage(new Bool(false));
   case Token::kw_quote:
     return mk_quoted_list(env);
   case Token::eof:
@@ -41,13 +41,13 @@ SExp *Parser::parse_list(Env &env) {
     auto elem = parse(env, token);
     elems.push_back(elem);
   }
-  return env.allocate(new List(elems));
+  return env.manage(new List(elems));
 }
 // this supports the backtick quote syntactic sugar: '(1 2) is transformed to
 // (quote (1 2)) as a macro (i.e before the code is interpreted)
 SExp *Parser::mk_quoted_list(Env &env) {
   std::list<SExp *> elems;
-  elems.push_back(env.allocate(new Atom("quote")));
+  elems.push_back(env.manage(new Atom("quote")));
   elems.push_back(parse(env, lexer.get_token()));
-  return env.allocate(new List(elems));
+  return env.manage(new List(elems));
 }

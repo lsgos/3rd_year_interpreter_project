@@ -22,16 +22,20 @@ private:
 
 protected:
   std::unordered_map<std::string, SExp *> scope;
-  // this should never be used except by inheritin classes
   Env() : global(nullptr) {}
 
 public:
+  //return a copy of the current symbol table
   virtual Env capture_scope() {
     // if the scope is not global, just provide a copy.
     return *this;
   }
-  virtual SExp *allocate(SExp *obj);
+  //Manage a new object with the garbage collector.
+  virtual SExp *manage(SExp *obj);
+  
+  //look up an identifier in the symbol table
   SExp *lookup(std::string id);
+  //add a new entry to the symbol table
   void def(std::string id, SExp *);
 
   Env(GlobalEnv &g);
@@ -42,7 +46,7 @@ public:
 class GlobalEnv : public Env {
 private:
   Heap heap;
-  // helper functions for constructing builtin function objects
+  //helper functions for creating builtins.
   SExp *mk_numeric_primitive(std::function<double(double acc, double x)> func,
                              std::string funcname);
 
@@ -50,18 +54,18 @@ private:
                    std::string name);
 
 public:
-  // lookup the value with name id and put it in p if it exists
+
   GlobalEnv();
   Env capture_scope() override;
-  SExp *allocate(SExp *obj) override { return heap.allocate(obj); }
+  SExp *manage(SExp *obj) override { return heap.manage(obj); }
+  
+  //bind the language builtin functions to the symbol table
   void bind_primitives();
   ~GlobalEnv() override;
   void bind_argv(int argc, char *argv[]);
   /*
   the global env cannot be moved without breaking
-  everything (since the dispatch of allocation
-  to the garbage collector depends on a pointer to
-  it being stored in Env's that are created using it: see env.cc).
+  everything.
   As a result, all constructors and operators that would allow it
   to be moved or copied are forbidden
   */
@@ -69,6 +73,7 @@ public:
   GlobalEnv &operator=(GlobalEnv &&) = delete;
   GlobalEnv(const GlobalEnv &) = delete;
   GlobalEnv &operator=(const GlobalEnv &) = delete;
+  //run the garbage collector
   void collect_garbage() { heap.collect_garbage(*this); }
 };
 

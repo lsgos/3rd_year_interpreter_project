@@ -116,179 +116,391 @@ specified, bug-ridden, slow implementation of half of common lisp.}
 \vskip 20mm
 \vskip 20mm
 \section*{Abstract}
-This report details the design and implementation of a minimal interpreter for a language in the LISP family,
-using C++.  The object oriented features of C++ are used to express the datatypes and primitives of the
-language in an elegant and self contained way. Since the actions of an interpreter must
-be determined at entirely runtime at by the user's input, extensive use must be made of runtime memory
-management and polymorphism, which is made clearer and simpler via effective class design and separation of concerns.
+
+
+This report details the design and implementation of a minimal
+interpreter for a language in the LISP family, using C++. Encapsulation
+in classes allows the separation of the main components of the
+interpreter: the lexer, parser, symbol table, garbage collector, and
+language data structures. The datatypes of the language are
+implemented as a hierarchy deriving from an abstract base class, which
+allows the polymorphic use of STL containers to store and manipulate
+these types. Exceptions are used to record and recover from errors in
+user-input commands.
+
+ 
 %%%%%
 %%%%%
 \section{ Introduction }
 %%%%%
 %%%%%
 
-An \textit{interpreter} is a program that directly executes a series of commands, transforming instructions in
-the form of source code in a specified language into computer actions. `Real world' interpreters for production languages are generally programs of considerable size and complexity, however if performance is not a priority, a
-minimal interpreter can be implemented fairly concisely. Lisp was chosen as the basis language for this interpreter\footnote{Technically speaking, the language implemented is based on lisp rather than being a lisp: it is compliant with neither the common lisp or scheme standards.} due to the conceptual simpicity of it's syntax and semantics, which greatly simplifies the implementation. All of lisps core syntax
-can be expressed as follows:
+An \textit{interpreter} is a program that directly executes a series
+of commands, transforming instructions in the form of source code in a
+specified language into computer actions. `Real world' interpreters
+for production languages are generally programs of considerable size
+and complexity, however if performance is not a priority, a minimal
+interpreter can be implemented fairly concisely. Lisp was chosen as
+the basis language for this interpreter\footnote{Technically speaking,
+the language implemented is based on lisp rather than being a lisp: it
+is compliant with neither the common lisp or scheme standards.} due to
+the conceptual simplicity of it's syntax and semantics, which greatly
+simplifies the implementation. All of lisps core syntax can be
+expressed as follows:
+
+
+
 \begin{lstlisting}
 (function argument1 argument2 ...)
 \end{lstlisting}
 
 
-which translates to `apply function to arg1, arg2, arg3...'. All lisp commands are \textit{expressions} rather than statements: that is, they all return a value. All lisp objects are \textit{first class}, meaning that they are all treated the same way, and can be passed around, put inside data structures, and passed as arguments to functions.
-The simplicity and uniformity of lisp's syntax greatly simplifies the implementation of the parser, making it plausible to write one by hand rather than
-using automatic parser generation software such as lexx and yacc, which are generally used for languages with more complex syntax. Classical lisp
-also makes use of only a simple compound datatype, the hetereogenous linked list, which is represented as a space separated list enclosed by parentheses. As this is also the format of function calls in lisp, the data structure used
-to represent a lisp program being evaluated and the data structure constructed
-by that program are the same, a property known as \textit{homoiconicity}.
+which translates to `apply function to arg1, arg2, arg3...'. All lisp
+commands are \textit{expressions} rather than statements: that is,
+they all evaluate to and return a value. All lisp objects are
+\textit{first class}, meaning that they are all treated the same way,
+and can be passed around, put inside data structures, and passed as
+arguments to functions. The simplicity and uniformity of lisp's syntax
+greatly simplifies the implementation of the parser. Classical lisp
+also makes use of only a simple compound datatype, the heterogeneous
+linked list, which is represented as a space separated list enclosed
+by parentheses.
 
-The functionality of an interpreter can be broken down into a few components, which can be implemented as separated classes:
+The interpreter works on an input string in stages:
 \begin{enumerate}
-\item The representation of language constructs as data structures. Evaluation of the language can be implemented as a method of this class, due to the
-equivalence between lisp code and data.
-\item The parser, which translates the string representation of a program into the internal representation of that program.
-\item The environment, which allows the binding of language values to names
-\item The garbage collector, which is responsible for managing the memory usage of the lisp environment.
+	\item \textit{Lex} the input, that is, convert the
+	representation of the program as a string of characters into a
+	sequence of tokens with semantic meaning. 
+	\item \textit{Parse}
+	the output of the lexer, converting it into a \textit{parse
+	tree}, a data structure that represents the program or
+	expression to be executed. 
+	\item Evaluate the parse tree,
+	executing the instructions it represents.
 \end{enumerate}
+
+Another key simplification to the implementation of an interpreter the
+use of lisp allows is that, since lisp programs are written as lists
+and the key data structure is also the list, the parse tree does not
+require a dedicated structure seperate from the language datatypes.
+
 
 \section{Design}
 \subsection{S-Expressions}
 \label{section:sexp}
 
-Lisp code consists of `S-Expressions', or symbolic expressions. An s-expression
-is either an \textit{atom}, a singular literal or identifier, or a list of
-s-expressions. S expressions are implemented as an abstract class, which the
-specialised types of the language (e.g list objects, strings, functions) all
-inherit from. The core data structure, the linked list, can then be implemented
-as a list of pointers to the abstract base class, using the linked list from the C++ STL.
+Lisp code consists of symbolic expressions or `S-Expressions'. An
+s-expression is either a singular literal, an `atom' or identifier, or
+a list of s-expressions. S expressions are implemented as an abstract
+class, which the specialised types of the language all inherit from.
+The most important method of the s expression base class is
+\textit{eval}: this method takes a reference to an instance of the
+environment class, which represents the current state of the
+interpreter, and returns a pointer to an s-expression that represents
+the value of the object when evaluated. The behaviour of this function
+depends on the type: most types are their own values, and simply
+return their own addresses. The exceptions are lists,
+which are evaluated as function calls, returning a pointer to a new
+s-expression holding the result of the call, and atoms, which return
+the result of looking up that string in the symbol table (throwing an
+exception if the atom is undefined).
 
- S-expressions can be evaluated by simply returning their literal
-values for literal types, by looking up a value in a symbol table for identifiers, and by evaluating lists as a function call of the form
-(function argument1 argument2 ...). This can be expressed by the concrete
-datatypes overriding virtual functions in an class, which allows
-the runtime resolution of an expression along the lines of
-\begin{lstlisting}[language=C++]
-  an_sexp_pointer->eval(env);
+
+
+The second virtual method allows a visitor pattern, which allows
+another class, the \textit{visitor}, to dispatch methods based on the
+actual type of the visited object at runtime. This is used to have
+other classes that can act polymorphically on s-expressions, as in the
+Representor classes that print representations of s-expressions to
+strings. The same functionality could have been achieved using virtual
+functions instead; however, this way is slightly neater because it
+achieves allows adding or changing the behaviour of visitor classes
+without having to modify the main class heirarchy. For example, the
+implementation of the display representor class which behaves
+differently on strings is trivial using the visitor pattern, but would
+be cumbersome if new virtual functions had to be added to every
+s-expression class.
+
+
+
+All fields of s-expressions are made const where possible. Once a
+value is created, it cannot be modified. Modification is only possible
+by creating a slightly modified copy. This may seem inefficient:
+however, since it allows pass by reference semantics, it actually
+simplifies things. For example, consider the following small program
+
+
+\begin{lstlisting}
+	(define x '("a" "b" "c" "d" "e"))
+	(define y (car x)) ;; y is "a" 
 \end{lstlisting}
-to have the appropriate behaviour resolved at runtime dependent on the actual
-type of the object being known to the calling function.
 
-All fields of s-expressions are made const where possible, making all variables
-immutable by default in the implemented language. The only way to change a variable is to create a new one. This may not seem terribly efficient, but it
-allows some greater flexibility since we can freely pass around and copy s-expression pointers within the builtin functions since we know the underlying objects cannot change, and the management of heap memory is delegated to the garbage collector.
+Since we know that the elements of the list are immutable, it is safe
+to have two variables, x and y, that actually point to the same object
+in memory ("a"). Using mutation behind the scenes could allow some
+code to be more efficient: however, determining when it is safe to
+mutate an object in user code is a difficult problem, and would
+require an optimisation pass over the parse tree, possibly compiling
+the parse tree to an intermediate bytecode before evaluating it. While
+a common approach in production compilers, this was deemed beyond the
+scope of this project. Using immutable objects is a simple way to ensure
+the interpreter behaves correctly.
 
-The use of a separate class to manage the memory of all s-expression classes
-makes them look somewhat unusual: in particular, lists and user-defined functions all contain pointers to heap assigned memory, but since no s-expression actually \textit{owns} memory, their destructors and copy constructors are all trivial: it is safe to copy an sexp pointer provided it was allocated correctly using the heap class (see section \ref{section:garbage}).
+The use of a separate class to manage the memory of all s-expression
+classes makes their definitions look somewhat unusual: in particular,
+lists and user-defined functions all contain pointers to heap assigned
+memory, but since no s-expression actually \textit{owns} memory, their
+destructors and copy constructors are all trivial: it is safe to copy
+an sexp pointer provided it was allocated correctly using the heap
+class (see section \ref{section:garbage}). Combined with the
+immutability of the underlying objects, this makes passing round the
+raw pointers to s-expressions, which is done frequently,
+much safer than it may first appear.
+
 
 \subsection{Lexing and Parsing}
 \label{section:parser}
 
-The lexer and parser classes handle the task of transforming text into s-expression objects. This task is further seperated into lexing and parsing:
-the lexer reads a string into a sequence of tokens, optionally storing additional data. For example, when the lexer encounters an opening bracket, it
-returns an open-bracket token, but when it encounters  a number it returns a number token, but must additionally provide a means to access the number it just read.
-The output of the lexer is fed into the parser, with this functionality built into the parser by simple composition of a lexer within the parser object.
+Due to the simplicity of lisp's grammar, the lexer and parser are
+fairly simple. Both expose a public interface that hides the details
+of how the stream is actually processed, seperating this from the rest
+of the interpreter. One possible design choice that was not
+implemented was to hide the parsing behind a stream extraction
+operator for s expressions. A stream insertion operator was used to
+hide the Representor class, so the absence of this is slightly
+asymmetrical. However, I wanted the parser to throw exceptions, so
+that the error handling mechanism could be uniform. This would break
+the pattern for extraction operators, which conventionally signal
+error by setting a failbit on the stream, and as a result I decided
+that it would be less confusing to call the parsers read\_sexp
+function explicitly than have an operator with unusual behaviour.
+
+The lexer tracks its line number and position in the input file,
+which are reported when the code encounters an error in order to aid
+debugging.
+
 
 \subsection{Environment and Scopes}
-The environment class is the interface between an s-expression and the state of
-the current program, for example, the definitions of variables. At it's core
-the environment is essentially a wrapper round a hash table of strings to
-s expression pointers. The more specialised global env is unique to a running
-interpreter, and is also responsible for keeping track of memory using it's enclosed heap class (see section \ref{garbage}).
-A notable feature of the global environment is that it is neither movable
-nor copyable: this is because the more general env classes, which just contain
-a symbol table and not a heap object, need to link back to the main garbage
-collector so the heap can keep track of allocations in these scopes. (Separate
-scope objects are used to implement lexical closures, where a function captures variables from the environment it was created in). This is implemented by storing a pointer back to the global scope that created the object: this required that the address of the global env never changes once it is created.
-This makes sense from a semantic point of view as well: the global environment and garbage collector are unique objects that the runtime depends on, and it
-is difficult to imagine a situation where you would need to, say, pass a copy
-of the garbage collector object into a function.
+
+The environment class implements a symbol table, a data structure that
+maps defined symbols in the language to their values, which is used to
+evaluate atoms. The symbol table is implemented using a hash table,
+the STL unordered map. A hash table is a data structure that allows
+indexing by an arbitrary type, such as strings, and provides average
+constant time insertion, lookup and deletion, so is well suited to
+this purpose compared with sequence-type structures like vectors or
+lists, which are expensive to search. The environment class wraps the
+allowed access to this table via the def and lookup functions. The
+other functionality the base class provides is capture scope, which
+returns a new environment with a symbol table that is a copy of the
+current state. This allows the implementation of lexical closure, the
+implicit capture of variables by a function definition.
+
+\newpage
+\begin{lstlisting}
+(define x 4)
+(define f
+	(lambda ()
+		(displayln x)))
+(define x 5)
+(f) ;;prints 4, since the value of x was captured when f was defined
+\end{lstlisting} 
+
+Even though the symbol x is now bound to a different value in the global
+scope, the environment captured by the function points to the original
+value, hence the behaviour above.\footnote{
+This is actually a fairly unusual version of closures, since the variables
+are captured by value rather than by reference, as in most dynamic languages.
+This adds to the general functional flavour of the implementation: if all 
+values are immutable, the difference between values and variables is slightly academic
+}
+
+The global environment is a specialisation of the env class. The most
+notable difference is that it contains a heap, the class which is
+responsible for garbage collection of the interpreted language. The
+global env forwards calls to manage, which tracks the assignment of
+new lisp objects, to the heap. Non-global envs must be created from
+within a global env, and they retain a pointer to it's location in
+order to forward manage calls to the global env. As a result of
+this, it is very important that, once created, the global env is not
+copied or even moved from its original location. Therefore, all of
+it's move and copy constructors are explicitly deleted.
+
+The global env's constructor also initialises the symbol table by
+binding a modest set of language builtins so they are available to the
+user. The builtin functions are defined in the file primitives.h and
+primitives.cc.
+
+
 \subsection{Garbage Collection}
 \label{section:garbage}
-Lisp is a garbage collected language, meaning that the responsibility for manually managing heap memory is delegated to the language runtime, rather than
-being the responsibility of the programmer as in C++. As such, it is neccesary to manually implement a garbage collector as part of the lisp runtime. This must
-track the usage of memory, detecting when a heap block is no longer referenced by anything in the lisp environment and cleaning up such memory as needed.
-An object is in use by lisp if it is reachable from the symbol table, directly or indirectly: if no way to reach it exists then it is garbage.
+
+
+Lisp is a garbage collected language, meaning that the responsibility
+for manually managing heap memory is delegated to the language
+runtime, rather than being the responsibility of the programmer as in
+C++. As C++ does not have a garbage collector, it is necessary to
+manually implement one for the lisp runtime. This must track the usage
+of memory, detecting when a heap block is no longer needed by anything
+and cleaning up such memory as needed. An object is in use by lisp if
+it is reachable from the symbol table, directly or indirectly: if no
+way to reach it exists then it is garbage.
+
 
 \begin{figure}
   \centering
   \includegraphics[width=0.5\textwidth]{memory.png}
   \caption{\textit{
-  A cartoon of the operation of mark-and-sweep. The table to the left of the
-  figure represents the symbol table. Arrows between objects A and B denote the
-  relationship ``A contains a pointer to B''. The red arrows represent the
-  path taken by the marking phase: Starting at each name in the symbol table,
-  all memory that is reachable from that name is traced out. Objects not
-  reachable by these paths are no longer reachable by any part of the runtime,
-  and are thus garbage that can be collected in the sweep phase.
+  A cartoon of the operation of mark-and-sweep. The table to the left of
+  the figure represents the symbol table. Arrows between objects A and B
+  denote the relationship ``A contains a pointer to B''. The red arrows
+  represent the path taken by the marking phase: Starting at each name
+  in the symbol table, all memory that is reachable from that name is
+  traced out. Objects not reachable by these paths are no longer
+  reachable by any part of the runtime, and are thus garbage that can be
+  collected in the sweep phase.
   }}
 \end{figure}
 
-One option for a garbage-collection like facility that is provided in C++ 11 is reference counting, where an pointer to a object maintains a record of how many
-other pointers that are also pointing to the same memory exist in the program, deallocating them when the reference count reaches zero. This is implemented by C++11's
-shared pointer class.
-Unfortunately, reference counting is not a complete form of garbage collection. In particular, it is able to leak memory if circular references are possible: that is,
-if object A contains a pointer to object B, but object B also contains a pointer to object A, then their reference counts will never hit zero even if it is not possible
-to reach either A or B. Since Lisp objects can contain pointers to other Lisp objects, this kind of cycle is possible, and a different strategy is necessary.
+One option for a garbage-collection like facility that is provided in
+C++ 11 is reference counting, where an pointer to a object maintains a
+record of how many other pointers that are also pointing to the same
+memory exist in the program, deallocating them when the reference
+count reaches zero. This is implemented by C++11's shared pointer
+class. Unfortunately, reference counting is not a complete form of
+garbage collection. In particular, it is able to leak memory if
+circular references are possible: that is, if object A contains a
+pointer to object B, but object B also contains a pointer to object A,
+then their reference counts will never hit zero even if it is not
+possible to reach either A or B.
 
-The simplest garbage collection algorithm that is guaranteed to collect reference cycles is \textit{mark and sweep}. This algorithm has two stages: in the first,
-memory that is reachable is marked, by starting from the roots of the memory graph and traversing through it, marking all memory that is reached. After all memory is
-marked, all memory in use is swept. Any memory that was not marked can be safely freed. This requires all memory locations used by the interpreter runtime to be
-stored somewhere, so that the sweep phase can clean them up later.
+%%since you hae used immutable variables, cycles aren't actually possible...
+%%maybe leave the garbage collection as it is for now. Or possibly we can refactor
+%%out the heap class? 
 
-The design I chose to implement this is a class that maintains a record of all memory allocated in a lisp context, providing a method, allocate, that can be used to wrap
-all calls to new, storing the pointers in an appropriate structure together with a a boolean flag for the mark phase.
+The simplest garbage collection algorithm that is guaranteed to
+collect reference cycles is \textit{mark and sweep}. This algorithm
+has two stages: in the first, memory that is reachable is marked, by
+starting from the roots of the memory graph and traversing through it,
+marking all memory that is reached. After all memory is marked, all
+memory in use is swept. Any memory that was not marked can be safely
+freed. This requires all memory locations used by the interpreter
+runtime to be stored somewhere, so that the sweep phase can clean them
+up later.
 
-The algorithm used is the most straightforward possible implementation of
-mark and sweep. This has some performance penalties, but since simplicity and
-correctness have been prioritised over performance this was deemed
-unimportant. The efficient implementation of automatic garbage collection is
-still something of an open problem in language design, as evidenced by the
-continuing use of non-garbage collected languages like C++ and C: solving
-it is beyond the scope of this project.
+The design I chose to implement this is a class that maintains a
+record of all memory allocated in a lisp context, providing a method,
+manage, that can be used to wrap all calls to new, storing the
+pointers in an appropriate structure together with a a Boolean flag
+for the mark phase.
 
-\section{Results}
 
-By judicious choice of language target, a language that is powerful enough to
-express useful computation has been implemented. The functionality of the
-language is demonstrated by two example programs: \textit{tests.lisp} demonstrates all the implemented builitin functions in order, demonstrating that
-the interpreter works as designed. \textit{erastothenes.lisp} uses the Sieve of
-Erastothenes algorithm to find all the prime numbers less than 1000, demonstrating the use of the provided language to express a non-trivial program.
-The garbage collector works, as validated by the use of the memory tracking program \textit{valgrind} on linux and by the memory debugger in visual studio. %%TODO: pictures?
+The algorithm used is the most straightforward possible implementation
+of mark and sweep. This has some performance penalties, but since
+simplicity and correctness have been prioritised over performance this
+was deemed unimportant. The efficient implementation of automatic
+garbage collection is still something of an open problem in language
+design, as evidenced by the continuing use of non-garbage collected
+languages like C++ and C: solving it is beyond the scope of this
+project.
 
-The use of the standard template library data structures simplifies the code.
-The standard linked list is used extensively, as this underlies the fundamental
-data structure of the language. Maps, or hash tables, are also used: these structures enable fast lookup of values indexed by keys, and are the most efficient way to implement looking up lisp values by strings in the symbol table. They are also used to associate pointer values with a flag holding their
-state in the garbage collector. 
+\section{Results \& Conclusion}
 
-There are a few notable omissions from my version of `lisp': the first is that
-I only use a single numeric type, a double precision floating point. Floating point numbers are not always desirable due to the possible introduction of floating point errors. All real-world lisps have a full hierarchy of numerical types, as do most programming languages. However, floating points are good enough for most use cases, and having only a single numerical type greatly simplifies the implementation of numerical functions, since they need not handle casts between different representations of number. A minority of
-mainstream programming languages also make this trade off, the most prominent being JavaScript.
 
-Another omission is my implementation of lists and the builtin cons function: in a traditional lisp cons does not need a list as the second argument, but can
-take anything. A cons onto a non-list object is called a pair or an improper list, and is written as follows:
+The implemented language is minimal, but is powerful enough to express
+useful computation. The functionality of the language is demonstrated
+by two example programs: \textit{tests.lisp} demonstrates all the
+implemented builtin functions in order, demonstrating that the
+interpreter works as designed. \textit{erastothenes.lisp} uses the
+Sieve of Erastothenes algorithm to find all the prime numbers less
+than 1000, demonstrating the use of the provided language to express a
+non-trivial program. The garbage collector works, as validated by the
+use of the memory tracking program \textit{valgrind} on Linux and by
+the memory debugger in visual studio.
+
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\textwidth]{valgrind.png}
+  \caption{\textit{
+  Results from testing the garbage collection using the memory tracking
+  program valgrind under Linux (compiled with clang). The small amount 
+  of memory left unfreed is not allocated by my program, but by some import:
+  some header files allocate memory for their own internal use, which is 
+  not freed explicitly since all memory is freed on program exit in any case.
+  }}
+\end{figure}
+
+
+The use of the standard template library data structures simplifies
+the code. The standard linked list is used extensively, as this
+underlies the fundamental data structure of the language. Maps, or
+hash tables, are also used: these structures enable fast lookup of
+values indexed by keys, and are the most efficient way to implement
+looking up lisp values by strings in the symbol table. They are also
+used to associate pointer values with a flag holding their state in
+the garbage collector.
+
+There are a few notable omissions from my version of `lisp': the first
+is that I only use a single numeric type, a double precision floating
+point. Floating point numbers are not always desirable due to the
+possible introduction of floating point errors. All real-world lisps
+have a full hierarchy of numerical types, as do most programming
+languages. However, floating points are good enough for most use
+cases, and having only a single numerical type greatly simplifies the
+implementation of numerical functions, since they need not handle
+casts between different representations of number. A minority of
+mainstream programming languages also make this trade off, the most
+prominent being JavaScript.
+
+Another omission is my implementation of lists and the builtin cons
+function: in a traditional lisp cons does not need a list as the
+second argument, but can take anything. A cons onto a non-list object
+is called a pair or an improper list, and is written as follows:
+
 \begin{lstlisting}
 
 (a . b)
 
 \end{lstlisting}
 
-I did not implement this because it is something of a historical oddity[CITATION NEEDED?] which is rarely particularly useful, and it complicates the implementation of the list type. Clojure, a modern lisp, also
-leaves out this feature.
+I did not implement this because it is something of a historical
+oddity[CITATION NEEDED?] which is rarely particularly useful, and it
+complicates the implementation of the list type. Clojure, a modern
+lisp, also leaves out this feature.
 
 %%CHANGE IF YOU IMPLEMENT THIS IN THE END?
-Two features whose absence is less justifiable are functions with variable numbers of arguments and lexical macros. These features are fairly important
-parts of lisp, though they are relatively advanced. I left them out because I felt that they were slightly beyond the requirements of this project, though I would include them if I had to extend it in the future. The lack of
-variadic functions in particular is slightly ugly since many of the builtin
-functions are variadic: the user lacks the ability to define functions like this, making the builtins `magic', which is not a particularly appealing design.
 
-There are a few areas of my implementation where clarity and simplicity was chosen over performance: this was deemed acceptable due to the scope of the project,
-but would possibly require changing if the implementation was extended. The
-most notable of these are the garbage collector and the parser: both use
-explicitly recursive strategies, which lead to clear code, but mean that very large input could cause the program to overflow the stack. I decided that
-clarity of code was preferable in the context of the report: if this language
-was intended for more serious use, it would probably be preferable to re-write
-this without explicit recursion using for loops and/or gotos to avoid growing the stack while parsing.
 
-Overall, however, I feel that this project is a successful demonstration of the principles behind an interpreter, and of effective object-oriented design
+Two features whose absence is less justifiable are functions with
+variable numbers of arguments and lexical macros. These features are
+fairly important parts of lisp, though they are relatively advanced. I
+left them out because I felt that they were slightly beyond the
+requirements of this project, though I would include them if I had to
+extend it in the future. The lack of variadic functions in particular
+is slightly ugly since many of the builtin functions are variadic: the
+user lacks the ability to define functions like this, making the
+builtins `magic', which is not a particularly appealing design.
+
+There are areas where the provided builtins could be expanded on: for
+example, while strings exist in the language, very few functions that
+act on strings are provided.
+
+
+There are a few areas of my implementation where clarity and
+simplicity was chosen over performance: this was deemed acceptable due
+to the scope of the project, but would possibly require changing if
+the implementation was extended. The most notable of these are the
+garbage collector and the parser: both use explicitly recursive
+strategies, which lead to clear code, but mean that very large input
+could cause the program to overflow the stack. I decided that clarity
+of code was preferable in the context of the report: if this language
+was intended for more serious use, it would probably be preferable to
+re-write this without explicit recursion using for loops and/or gotos
+to avoid growing the stack while parsing.
+
+Overall, however, I feel that this project is a successful
+demonstration of the principles behind an interpreter, and of
+effective object-oriented design. 
+
 \end{document}

@@ -47,18 +47,15 @@ public:
   virtual void visit(OutPort &out) = 0;
 };
 
-// abstract class representing list data
+// Abstract class for language objects
 class SExp {
 public:
   // a function allowing visitor classes to dispatch
   // methods based on the underlying type of the expression
   virtual void exec(SExpVisitor &visitor) = 0;
+  
   // eval returns a pointer to an SExp containing the
-  // value of the lisp expression. May be the same as the
-  // current pointer (primitive datatypes are their own values),
-  // the value defined in the symbol table (for atoms) or
-  // a new value constructed by function evaluation (for lists).
-  // Garbage collection is handled by the Env class
+  // result of evaluating the lisp expression.
   virtual SExp *eval(Env &env) = 0;
   virtual ~SExp() {}
 };
@@ -66,8 +63,7 @@ public:
 // template class for 'primitive' types, like numbers and booleans. Primitive
 // types all essentially just box a c++ value, and they all eval to themselves,
 // so most of the boilerplate of creating these classes can be abstracted to a
-// template. The intantiated templates have to implement the exec visitor
-// function though
+// template
 template <typename T> class PrimitiveType : public SExp {
   const T value;
 
@@ -132,6 +128,7 @@ public:
   virtual ~Function() {}
 };
 
+//Builtin functions
 class PrimitiveFunction : public Function {
 private:
   const std::function<SExp *(std::list<SExp *> &, Env &)> fn;
@@ -160,8 +157,6 @@ private:
   const Env closure;
 
 public:
-  // constructor: caputures a scope, a list of parameter names and a body,
-  // a sequence of SExps to execute when the function is called.
   LambdaFunction(Env env, std::list<std::string> params, std::list<SExp *> body)
       : closure(env), params(params), body(body) {}
   virtual SExp *call(std::list<SExp *> args, Env &env) override;

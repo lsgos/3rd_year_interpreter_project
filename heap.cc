@@ -9,15 +9,15 @@ Heap &Heap::operator=(Heap other) {
   return *this;
 }
 
-// Should be used as heap.allocate(new some_object);
+// Should be used as heap.manage(new some_object);
 // adds the newly created objects address to the heap's record,
 // marking it as unused by default
-SExp *Heap::allocate(SExp *new_object) {
+SExp *Heap::manage(SExp *new_object) {
   objects[new_object] = false;
   return new_object;
 }
 
-// The heap class is responsible for manageing the memory usage of
+// The heap class is responsible for managing the memory usage of
 // the program, so it's destructor must clean up all the memory it
 // was responsible for
 Heap::~Heap() {
@@ -64,8 +64,8 @@ void Heap::mark(SExp *addr) {
   }
   entry->second = true; // mark address as in use
 
-  // Lists and functions can contain references to other objects: we need
-  // to mark the objects they reference as in use as well
+  // Lists and user-defined functions can contain references to other objects:
+  // we need to mark the objects they reference as in use as well
 
   if (typeid(*addr) == typeid(List)) {
     auto list = static_cast<List *>(addr);

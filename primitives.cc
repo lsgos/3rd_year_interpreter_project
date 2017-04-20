@@ -25,7 +25,7 @@ SExp *primitive::cons(std::list<SExp *> args, Env &env) {
 
   std::list<SExp *> cons_list = lp->elems;
   cons_list.push_front(car);
-  return env.allocate(new List(cons_list));
+  return env.manage(new List(cons_list));
 }
 
 SExp *primitive::car(std::list<SExp *> args, Env &env) {
@@ -58,7 +58,7 @@ SExp *primitive::isnull(std::list<SExp *> args, Env &env) {
     if (lp && lp->elems.empty()) {
       result = true;
     }
-    return env.allocate(new Bool(result));
+    return env.manage(new Bool(result));
   }
 }
 
@@ -76,7 +76,7 @@ SExp *primitive::cdr(std::list<SExp *> args, Env &env) {
     throw evaluation_error("Cannot ask for the cdr of a empty list");
   }
   elems.pop_front();
-  return env.allocate(new List(elems));
+  return env.manage(new List(elems));
 }
 
 SExp *primitive::quote(std::list<SExp *> args, Env &env) {
@@ -102,7 +102,7 @@ SExp *primitive::define(std::list<SExp *> args, Env &env) {
   auto value = args.front();
   value = value->eval(env);
   env.def(id, value);
-  return env.allocate(new List);
+  return env.manage(new List);
 }
 
 SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
@@ -137,7 +137,7 @@ SExp *primitive::lambda(std::list<SExp *> args, Env &env) {
   }
 
   Env closure = env.capture_scope();
-  return env.allocate(new LambdaFunction(closure, param_list, args));
+  return env.manage(new LambdaFunction(closure, param_list, args));
 }
 // implement the if special form
 SExp *primitive::if_stmt(std::list<SExp *> args, Env &env) {
@@ -189,7 +189,7 @@ SExp *primitive::numeric_eq(std::list<SExp *> args, Env &env) {
       break;
     }
   }
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 SExp *primitive::eq(std::list<SExp *> args, Env &env) {
   // This is slightly different from the canonical lisp eq, which
@@ -228,7 +228,7 @@ SExp *primitive::eq(std::list<SExp *> args, Env &env) {
     result = (arg1 == arg2);
   }
 
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 
 SExp *primitive::eval(std::list<SExp *> args, Env &env) {
@@ -254,7 +254,7 @@ SExp *primitive::is_number(std::list<SExp *> args, Env &env) {
   if (typeid(*arg) == typeid(Number)) {
     result = true;
   }
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 
 SExp *primitive::open_output_port(std::list<SExp *> args, Env &env) {
@@ -271,11 +271,11 @@ SExp *primitive::open_output_port(std::list<SExp *> args, Env &env) {
   std::string name = sp->val();
 
   try {
-    return env.allocate(new OutPort(name));
+    return env.manage(new OutPort(name));
   } catch (io_error e) {
     // use booleans to signal errors to the calling program, since we aren't
     // going to implement exception catching
-    return env.allocate(new Bool(false));
+    return env.manage(new Bool(false));
   }
 }
 
@@ -294,11 +294,11 @@ SExp *primitive::open_input_port(std::list<SExp *> args, Env &env) {
   std::string name = sp->val();
 
   try {
-    return env.allocate(new InPort(name));
+    return env.manage(new InPort(name));
   } catch (io_error e) {
     // use booleans to signal errors to the calling program, since we aren't
     // going to implement exception catching
-    return env.allocate(new Bool(false));
+    return env.manage(new Bool(false));
   }
 }
 
@@ -333,7 +333,7 @@ SExp *primitive::port_to_string(std::list<SExp *> args, Env &env) {
   try {
     return ip->read(env);
   } catch (io_error e) {
-    return env.allocate(new Bool(false)); // return false if nothing can be read
+    return env.manage(new Bool(false)); // return false if nothing can be read
   }
 }
 
@@ -434,7 +434,7 @@ SExp *primitive::modulo(std::list<SExp *> args, Env &env) {
     throw evaluation_error("Encountered non-numeric arguments in function %");
   }
   double result = std::fmod(argument, mod);
-  return env.allocate(new Number(result));
+  return env.manage(new Number(result));
 }
 
 SExp *primitive::not_stmt(std::list<SExp *> args, Env &env) {
@@ -443,7 +443,7 @@ SExp *primitive::not_stmt(std::list<SExp *> args, Env &env) {
   }
   auto x = args.front()->eval(env);
   bool result = !is_true(x);
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 
 // Here, we implement the common higher order functions map, filter and fold.
@@ -469,7 +469,7 @@ SExp *primitive::logical_and(std::list<SExp *> args, Env &env) {
       break;
     }
   }
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 SExp *primitive::logical_or(std::list<SExp *> args, Env &env) {
   std::for_each(args.begin(), args.end(),
@@ -481,11 +481,11 @@ SExp *primitive::logical_or(std::list<SExp *> args, Env &env) {
       break;
     }
   }
-  return env.allocate(new Bool(result));
+  return env.manage(new Bool(result));
 }
 
 static SExp *quote_var(SExp *var, Env &env) {
-  return env.allocate(new List(std::list<SExp *>{env.lookup("quote"), var}));
+  return env.manage(new List(std::list<SExp *>{env.lookup("quote"), var}));
 }
 
 // (map f xs) where xs = (a b c d ...) --> ((f a) (f b) (f c) (f d) ...)
@@ -513,7 +513,7 @@ SExp *primitive::map(std::list<SExp *> args, Env &env) {
   std::for_each(elements.begin(), elements.end(), [&func, &env](SExp *&a) {
     a = func->call(std::list<SExp *>{quote_var(a, env)}, env);
   });
-  return env.allocate(new List(elements));
+  return env.manage(new List(elements));
 }
 
 SExp *primitive::filter(std::list<SExp *> args, Env &env) {
@@ -551,7 +551,7 @@ SExp *primitive::filter(std::list<SExp *> args, Env &env) {
                      }),
       elements.end());
 
-  return env.allocate(new List(elements));
+  return env.manage(new List(elements));
 }
 
 // Implements a left fold over the list with the last element as the accumulator
@@ -596,7 +596,7 @@ SExp *primitive::fold(std::list<SExp *> args, Env &env) {
 SExp *primitive::list(std::list<SExp *> args, Env &env) {
   // construct a list from elems: this is very simple!
   std::for_each(args.begin(), args.end(), [&](SExp *&a) { a = a->eval(env); });
-  return env.allocate(new List(args));
+  return env.manage(new List(args));
 }
 // convert a string to an s-expression
 SExp *primitive::read(std::list<SExp *> args, Env &env) {

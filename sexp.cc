@@ -102,7 +102,7 @@ SExp *InPort::read(Env &env) {
 
   auto str = std::string((std::istreambuf_iterator<char>(in)),
                          std::istreambuf_iterator<char>());
-  return env.allocate(new String(str));
+  return env.manage(new String(str));
 }
 
 SExp *InPort::read_ln(Env &env) {
@@ -116,7 +116,7 @@ SExp *InPort::read_ln(Env &env) {
   std::istream &in = stdin ? std::cin : file;
   std::string str;
   std::getline(in, str);
-  return env.allocate(new String(str));
+  return env.manage(new String(str));
 }
 
 OutPort::OutPort(std::string name) : stdoutput(false), name(name) {

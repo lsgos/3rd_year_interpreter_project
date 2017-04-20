@@ -1,18 +1,6 @@
 
 ;;This file includes brief examples demonstrating all of the core functionality of the language
 
-(define my-map
-	(lambda (f xs)
-		(if (null? xs)
-		'()
-		(cons (f (car xs)) (my-map f (cdr xs))))))
-
-(define my-fold
-	(lambda (f acc xs)
-		(if (null? xs)
-		acc
-		(my-fold f (f acc (car xs)) (cdr xs)))))
-
 (define tests
 	(list
 
@@ -59,11 +47,12 @@
 		'(if #t "this" "not this")
 		'(if #f "not this" "but this")
 		'(if 39 "Everything is true" "but false")
-		'(if (not (lambda x (* x 2))) 99 "this is still true!")
+		'(if (not (lambda (x) (* x 2))) 99 "this is still true!")
 		'(= 4 5)
 		'(= 4 (* 2 2))
 		'(eq? 4 5)
 		'(eq? 4 "4")
+		'(eq? "hi" (lambda (x) (* x 2)))
 		'(eq? "this" "this")
 		'(eq? #t #f)
 		'(null? 4)
@@ -126,7 +115,7 @@
 		'(filter (lambda (x) ( = (% x 2) 0) ) '(1 2 3 4 5 6 7 8 9 10))
 		'(fold (lambda (acc x) (cons x acc)) '() '(1 2 3 4 5 6))
 
-		;;just for fun: this is well known quine, a program whose output is it's own source code
+		;;just for fun: this is a well known quine, a program whose output is it's own source code
 
 		'((lambda (s) (displayln (list s (list (quote quote) s))))
 			(quote (lambda (s) (displayln (list s (list (quote quote) s))))))
@@ -135,10 +124,24 @@
 		'((lambda () 
 				(define f (open-output-port "Hello.txt"))
 				(if f 
-				(displayln "Hello, world!" f)
+				(displayln "If you can read this twice, the next test was OK" f)
 				(displayln "Could not open file")
 				)
 				(close-output-port f)
+		 ))
+
+		 '((lambda ()
+		 		(define f (open-input-port "Hello.txt"))
+				(if f
+				(displayln (port->string f))
+				(displayln "Couldn't open file")
+				)
+				(close-input-port f)
+		 ))
+		 
+		 ;;display command line arguments and program name
+		 '((lambda ()
+		 	(displayln ARGV)
 		 ))
 	))
 

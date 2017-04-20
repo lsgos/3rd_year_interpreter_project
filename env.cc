@@ -34,17 +34,17 @@ SExp *GlobalEnv::mk_numeric_primitive(
         acc = func(acc, num);
       }
     }
-    SExp *result = env.allocate(new Number(acc));
+    SExp *result = env.manage(new Number(acc));
     return result;
   };
-  return heap.allocate(new PrimitiveFunction(fn, funcname));
+  return heap.manage(new PrimitiveFunction(fn, funcname));
 }
 
 // takes a function and converts it into a PrimitiveFunction object containing
 // it
 SExp *GlobalEnv::mk_builtin(std::function<SExp *(std::list<SExp *>, Env &)> fn,
                             std::string funcname) {
-  return heap.allocate(new PrimitiveFunction(fn, funcname));
+  return heap.manage(new PrimitiveFunction(fn, funcname));
 }
 
 // called to create a blank environment: bind the language builtins
@@ -66,7 +66,7 @@ SExp *Env::lookup(std::string id) {
 void GlobalEnv::bind_primitives() {
   using namespace primitive;
   // constant null
-  def("null", heap.allocate(new List()));
+  def("null", heap.manage(new List()));
 
   // primitive functions
   def("+", mk_numeric_primitive(
@@ -95,7 +95,7 @@ void GlobalEnv::bind_primitives() {
   def("displayln", mk_builtin(displayln, "displayln"));
   def("close-output-port", mk_builtin(close_output_port, "close-output-port"));
   // bind standard output and input to lisp input and output objects
-  def("std-output-port", heap.allocate(new OutPort()));
+  def("std-output-port", heap.manage(new OutPort()));
   def("%", mk_builtin(modulo, "%"));
   def("not", mk_builtin(not_stmt, "not"));
   def("map", mk_builtin(map, "map"));
@@ -115,9 +115,9 @@ void GlobalEnv::bind_primitives() {
 void GlobalEnv::bind_argv(int argc, char *argv[]) {
   std::list<SExp *> arglist;
   for (int i = 1; i < argc; i++) {
-    arglist.push_back(heap.allocate(new String(argv[i])));
+    arglist.push_back(heap.manage(new String(argv[i])));
   }
-  def("ARGV", heap.allocate(new List(arglist)));
+  def("ARGV", heap.manage(new List(arglist)));
 }
 
 GlobalEnv::~GlobalEnv() {}
@@ -141,7 +141,7 @@ void Env::def(std::string id, SExp *value) {
   return;
 }
 
-SExp *Env::allocate(SExp *new_obj) {
+SExp *Env::manage(SExp *new_obj) {
   // keep all control of allocation in the global scope
-  return global->allocate(new_obj);
+  return global->manage(new_obj);
 }

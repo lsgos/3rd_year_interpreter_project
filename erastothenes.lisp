@@ -1,3 +1,4 @@
+
 ;;This program uses my interpreted language to find all the prime numbers lower than 1000, 
 ;;using the Sieve of Erastothenes. 
 
@@ -11,8 +12,9 @@
 
 (define rm-multiples-of 
 	(lambda (arg xs)
-		(filter  (lambda x (not (= (% x arg) 0))) xs)))
+		(filter  (lambda (x) (not (= (% x arg) 0))) xs)))
 			
+		
 (define erastothenes 
 	(lambda (xs)
 		(if (null? xs) 
