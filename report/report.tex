@@ -102,21 +102,14 @@ Lewis Smith
 \vskip 5mm
 \vskip 5mm
 \centerline{\em University of Manchester }
-\vskip 5mm
-
-\begin{center}
-\textit{
-Any sufficiently complex C or FORTRAN program contains a buggy, inconsistent, ad hoc, informally
-specified, bug-ridden, slow implementation of half of common lisp.}
-\vskip 5mm
-\textit{ - Philip Greenspun}
-\end{center}
-
 
 \vskip 20mm
 \vskip 20mm
 \section*{Abstract}
 
+
+
+%%TODO remove ~100 more words
 
 This report details the design and implementation of a minimal
 interpreter for a language in the LISP family, using C++. Encapsulation
@@ -160,11 +153,15 @@ commands are \textit{expressions} rather than statements: that is,
 they all evaluate to and return a value. All lisp objects are
 \textit{first class}, meaning that they are all treated the same way,
 and can be passed around, put inside data structures, and passed as
-arguments to functions. The simplicity and uniformity of lisp's syntax
-greatly simplifies the implementation of the parser. Classical lisp
-also makes use of only a simple compound datatype, the heterogeneous
+arguments to functions. This version of lisp
+makes use of only one compound datatype, the heterogeneous
 linked list, which is represented as a space separated list enclosed
-by parentheses.
+by parentheses. Another feature of lisp that simplifies the interpreter
+is that lisp programs are written as lists, evaluated as function calls
+as desribed above. Therefore, the structure of a lisp program can be 
+represented as a lisp datatype (a list of lisp objects), meaning there
+is no need for a dedicated parse tree structure. This property is known
+as \textit{homoiconicity}.
 
 The interpreter works on an input string in stages:
 \begin{enumerate}
@@ -172,17 +169,11 @@ The interpreter works on an input string in stages:
 	representation of the program as a string of characters into a
 	sequence of tokens with semantic meaning. 
 	\item \textit{Parse}
-	the output of the lexer, converting it into a \textit{parse
-	tree}, a data structure that represents the program or
-	expression to be executed. 
+	the output of the lexer, building a data structure that represents
+	the program or expression to be executed. 
 	\item Evaluate the parse tree,
 	executing the instructions it represents.
 \end{enumerate}
-
-Another key simplification to the implementation of an interpreter the
-use of lisp allows is that, since lisp programs are written as lists
-and the key data structure is also the list, the parse tree does not
-require a dedicated structure seperate from the language datatypes.
 
 
 \section{Design}
@@ -215,7 +206,7 @@ Representor classes that print representations of s-expressions to
 strings. The same functionality could have been achieved using virtual
 functions instead; however, this way is slightly neater because it
 achieves allows adding or changing the behaviour of visitor classes
-without having to modify the main class heirarchy. For example, the
+without having to modify the main class hierarchy. For example, the
 implementation of the display representor class which behaves
 differently on strings is trivial using the visitor pattern, but would
 be cumbersome if new virtual functions had to be added to every
@@ -263,7 +254,7 @@ much safer than it may first appear.
 
 Due to the simplicity of lisp's grammar, the lexer and parser are
 fairly simple. Both expose a public interface that hides the details
-of how the stream is actually processed, seperating this from the rest
+of how the stream is actually processed, separating this from the rest
 of the interpreter. One possible design choice that was not
 implemented was to hide the parsing behind a stream extraction
 operator for s expressions. A stream insertion operator was used to
@@ -272,7 +263,7 @@ asymmetrical. However, I wanted the parser to throw exceptions, so
 that the error handling mechanism could be uniform. This would break
 the pattern for extraction operators, which conventionally signal
 error by setting a failbit on the stream, and as a result I decided
-that it would be less confusing to call the parsers read\_sexp
+that it would be less confusing to call the parser's read\_sexp
 function explicitly than have an operator with unusual behaviour.
 
 The lexer tracks its line number and position in the input file,
@@ -280,7 +271,7 @@ which are reported when the code encounters an error in order to aid
 debugging.
 
 
-\subsection{Environment and Scopes}
+\subsection{Environments}
 
 The environment class implements a symbol table, a data structure that
 maps defined symbols in the language to their values, which is used to
@@ -294,26 +285,9 @@ allowed access to this table via the def and lookup functions. The
 other functionality the base class provides is capture scope, which
 returns a new environment with a symbol table that is a copy of the
 current state. This allows the implementation of lexical closure, the
-implicit capture of variables by a function definition.
+implicit capture of variables from an enclosing scope by a function 
+definition.
 
-\newpage
-\begin{lstlisting}
-(define x 4)
-(define f
-	(lambda ()
-		(displayln x)))
-(define x 5)
-(f) ;;prints 4, since the value of x was captured when f was defined
-\end{lstlisting} 
-
-Even though the symbol x is now bound to a different value in the global
-scope, the environment captured by the function points to the original
-value, hence the behaviour above.\footnote{
-This is actually a fairly unusual version of closures, since the variables
-are captured by value rather than by reference, as in most dynamic languages.
-This adds to the general functional flavour of the implementation: if all 
-values are immutable, the difference between values and variables is slightly academic
-}
 
 The global environment is a specialisation of the env class. The most
 notable difference is that it contains a heap, the class which is
@@ -394,16 +368,6 @@ manage, that can be used to wrap all calls to new, storing the
 pointers in an appropriate structure together with a a Boolean flag
 for the mark phase.
 
-
-The algorithm used is the most straightforward possible implementation
-of mark and sweep. This has some performance penalties, but since
-simplicity and correctness have been prioritised over performance this
-was deemed unimportant. The efficient implementation of automatic
-garbage collection is still something of an open problem in language
-design, as evidenced by the continuing use of non-garbage collected
-languages like C++ and C: solving it is beyond the scope of this
-project.
-
 \section{Results \& Conclusion}
 
 
@@ -432,26 +396,17 @@ the memory debugger in visual studio.
 \end{figure}
 
 
-The use of the standard template library data structures simplifies
-the code. The standard linked list is used extensively, as this
-underlies the fundamental data structure of the language. Maps, or
-hash tables, are also used: these structures enable fast lookup of
-values indexed by keys, and are the most efficient way to implement
-looking up lisp values by strings in the symbol table. They are also
-used to associate pointer values with a flag holding their state in
-the garbage collector.
 
 There are a few notable omissions from my version of `lisp': the first
 is that I only use a single numeric type, a double precision floating
-point. Floating point numbers are not always desirable due to the
-possible introduction of floating point errors. All real-world lisps
-have a full hierarchy of numerical types, as do most programming
-languages. However, floating points are good enough for most use
-cases, and having only a single numerical type greatly simplifies the
-implementation of numerical functions, since they need not handle
-casts between different representations of number. A minority of
-mainstream programming languages also make this trade off, the most
-prominent being JavaScript.
+point. It would be convenient to have a dedicated integer type, as in
+most programming languages. However, floating points are good enough
+for most use cases, and having only a single numerical type simplfies
+the parser and means the numerical functions need not handle casts
+between different numeric types. A minority of mainstream programming
+languages also make this trade off, the most prominent being
+JavaScript.
+
 
 Another omission is my implementation of lists and the builtin cons
 function: in a traditional lisp cons does not need a list as the
@@ -464,27 +419,17 @@ is called a pair or an improper list, and is written as follows:
 
 \end{lstlisting}
 
-I did not implement this because it is something of a historical
-oddity[CITATION NEEDED?] which is rarely particularly useful, and it
-complicates the implementation of the list type. Clojure, a modern
-lisp, also leaves out this feature.
-
-%%CHANGE IF YOU IMPLEMENT THIS IN THE END?
+I did not implement this because it complicates the implementation of
+the list type and is not particularly useful. Clojure, a modern lisp,
+also leaves out this feature.
 
 
-Two features whose absence is less justifiable are functions with
-variable numbers of arguments and lexical macros. These features are
-fairly important parts of lisp, though they are relatively advanced. I
-left them out because I felt that they were slightly beyond the
-requirements of this project, though I would include them if I had to
-extend it in the future. The lack of variadic functions in particular
-is slightly ugly since many of the builtin functions are variadic: the
-user lacks the ability to define functions like this, making the
-builtins `magic', which is not a particularly appealing design.
-
-There are areas where the provided builtins could be expanded on: for
-example, while strings exist in the language, very few functions that
-act on strings are provided.
+Some of the more advanced features often found in lisp-family
+languages are also left out; user defined functions with variable
+numbers of arguments, and lexical macros. If the project was extended
+these would be obvious extensions. Another would be providing builtins
+for manipulating strings: while they exist in the language, at the
+moment they cannot really be manipulated in any meaningful way.
 
 
 There are a few areas of my implementation where clarity and
@@ -492,15 +437,18 @@ simplicity was chosen over performance: this was deemed acceptable due
 to the scope of the project, but would possibly require changing if
 the implementation was extended. The most notable of these are the
 garbage collector and the parser: both use explicitly recursive
-strategies, which lead to clear code, but mean that very large input
-could cause the program to overflow the stack. I decided that clarity
-of code was preferable in the context of the report: if this language
-was intended for more serious use, it would probably be preferable to
-re-write this without explicit recursion using for loops and/or gotos
-to avoid growing the stack while parsing.
+strategies, which lead to clear code, but mean that adverserial input\footnote{
+For example, a very long file consisting of nothing but open brackets.
+}
+could cause the program to overflow the stack and crash. This could 
+be avoided by re-writing the parser class to use a heap allocated buffer
+and avoid explicit recursion. In practice this is unlikely to cause any
+problems for reasonable input, so I decided to stick to the simpler version.
+Due to the class design, changning the parsing strategy could be done without 
+modifying the rest of the code.
 
 Overall, however, I feel that this project is a successful
-demonstration of the principles behind an interpreter, and of
-effective object-oriented design. 
+demonstration of effective use of classes and the principles behind a
+working interpreter.
 
 \end{document}
