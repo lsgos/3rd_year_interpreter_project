@@ -109,17 +109,16 @@ Lewis Smith
 
 
 
-%%TODO remove ~100 more words
-
 This report details the design and implementation of a minimal
-interpreter for a language in the LISP family, using C++. Encapsulation
-in classes allows the separation of the main components of the
-interpreter: the lexer, parser, symbol table, garbage collector, and
-language data structures. The datatypes of the language are
-implemented as a hierarchy deriving from an abstract base class, which
-allows the polymorphic use of STL containers to store and manipulate
-these types. Exceptions are used to record and recover from errors in
-user-input commands.
+interpreter for a language in the LISP family, using C++.
+Encapsulation in classes allows the separation of the main components
+of the interpreter: the lexer, parser, symbol table, garbage
+collector, and language data structures. The datatypes of the language
+are a hierarchy deriving from an abstract base class, which allows the
+polymorphic use of STL containers to store and manipulate these types.
+Exceptions are used to record and recover from errors in user-input
+commands.
+
 
  
 %%%%%
@@ -131,37 +130,36 @@ user-input commands.
 An \textit{interpreter} is a program that directly executes a series
 of commands, transforming instructions in the form of source code in a
 specified language into computer actions. `Real world' interpreters
-for production languages are generally programs of considerable size
-and complexity, however if performance is not a priority, a minimal
-interpreter can be implemented fairly concisely. Lisp was chosen as
-the basis language for this interpreter\footnote{Technically speaking,
-the language implemented is based on lisp rather than being a lisp: it
-is compliant with neither the common lisp or scheme standards.} due to
-the conceptual simplicity of it's syntax and semantics, which greatly
-simplifies the implementation. All of lisps core syntax can be
-expressed as follows:
-
+are generally programs of considerable size and complexity, but a
+minimal interpreter can be implemented fairly concisely if performance
+is not a priority. Lisp was chosen as the basis language for this
+interpreter\footnote{
+Technically speaking, the language implemented is
+based on lisp rather than being a lisp: it is compliant with neither
+the common lisp or scheme standards.}
+due to the simplicity of it's syntax and semantics, which simplifies
+the interpreter implementation. List consists of expressions of the
+form
 
 
 \begin{lstlisting}
-(function argument1 argument2 ...)
+(func argument1 argument2 ...)
 \end{lstlisting}
 
 
-which translates to `apply function to arg1, arg2, arg3...'. All lisp
-commands are \textit{expressions} rather than statements: that is,
-they all evaluate to and return a value. All lisp objects are
-\textit{first class}, meaning that they are all treated the same way,
-and can be passed around, put inside data structures, and passed as
-arguments to functions. This version of lisp
-makes use of only one compound datatype, the heterogeneous
-linked list, which is represented as a space separated list enclosed
-by parentheses. Another feature of lisp that simplifies the interpreter
-is that lisp programs are written as lists, evaluated as function calls
-as desribed above. Therefore, the structure of a lisp program can be 
-represented as a lisp datatype (a list of lisp objects), meaning there
-is no need for a dedicated parse tree structure. This property is known
-as \textit{homoiconicity}.
+which translates to `call func with arg1, arg2, arg3... as arguments'.
+All lisp commands are \textit{expressions} rather than statements:
+that is, they all evaluate to and return a value. Lisp has first class
+functions, meaning that functions are assigned to variables in the
+same way as any other datatype. This version of lisp makes use of only
+one compound datatype, the heterogeneous linked list, which is
+represented as a space separated list enclosed by parentheses. Another
+feature of lisp that simplifies the interpreter is that lisp programs
+are represented as lists, evaluated as function calls as described above.
+Since the structure of a lisp program can be represented as a
+lisp datatype (a list of lisp objects) there is no need for a
+separate, dedicated parse tree structure.
+
 
 The interpreter works on an input string in stages:
 \begin{enumerate}
@@ -182,9 +180,8 @@ The interpreter works on an input string in stages:
 
 Lisp code consists of symbolic expressions or `S-Expressions'. An
 s-expression is either a singular literal, an `atom' or identifier, or
-a list of s-expressions. S expressions are implemented as an abstract
-class, which the specialised types of the language all inherit from.
-The most important method of the s expression base class is
+a list of s-expressions.
+The most important method of the s-expression base class is
 \textit{eval}: this method takes a reference to an instance of the
 environment class, which represents the current state of the
 interpreter, and returns a pointer to an s-expression that represents
@@ -210,15 +207,15 @@ without having to modify the main class hierarchy. For example, the
 implementation of the display representor class which behaves
 differently on strings is trivial using the visitor pattern, but would
 be cumbersome if new virtual functions had to be added to every
-s-expression class.
+s-expression subclass.
 
 
 
 All fields of s-expressions are made const where possible. Once a
 value is created, it cannot be modified. Modification is only possible
 by creating a slightly modified copy. This may seem inefficient:
-however, since it allows pass by reference semantics, it actually
-simplifies things. For example, consider the following small program
+however, it ensures the safety of passing references instead of
+performing deep copies, which is more efficient on some common operations.
 
 
 \begin{lstlisting}
@@ -231,8 +228,7 @@ to have two variables, x and y, that actually point to the same object
 in memory ("a"). Using mutation behind the scenes could allow some
 code to be more efficient: however, determining when it is safe to
 mutate an object in user code is a difficult problem, and would
-require an optimisation pass over the parse tree, possibly compiling
-the parse tree to an intermediate bytecode before evaluating it. While
+require an optimisation pass over the parse tree. While
 a common approach in production compilers, this was deemed beyond the
 scope of this project. Using immutable objects is a simple way to ensure
 the interpreter behaves correctly.
@@ -245,26 +241,27 @@ destructors and copy constructors are all trivial: it is safe to copy
 an sexp pointer provided it was allocated correctly using the heap
 class (see section \ref{section:garbage}). Combined with the
 immutability of the underlying objects, this makes passing round the
-raw pointers to s-expressions, which is done frequently,
-much safer than it may first appear.
+raw pointers to s-expressions memory safe and easy to reason about.
 
 
 \subsection{Lexing and Parsing}
 \label{section:parser}
 
-Due to the simplicity of lisp's grammar, the lexer and parser are
-fairly simple. Both expose a public interface that hides the details
-of how the stream is actually processed, separating this from the rest
-of the interpreter. One possible design choice that was not
-implemented was to hide the parsing behind a stream extraction
-operator for s expressions. A stream insertion operator was used to
-hide the Representor class, so the absence of this is slightly
-asymmetrical. However, I wanted the parser to throw exceptions, so
-that the error handling mechanism could be uniform. This would break
-the pattern for extraction operators, which conventionally signal
-error by setting a failbit on the stream, and as a result I decided
-that it would be less confusing to call the parser's read\_sexp
-function explicitly than have an operator with unusual behaviour.
+As mentioned in the introduction, the main reason lisp was chosen is
+that it simplifies the lexer and parser. Both expose a public
+interface that hides the details of how the stream is actually
+processed, separating this from the rest of the interpreter. One
+possible design choice that was not implemented was to hide the
+parsing behind a stream extraction operator for s expressions. A
+stream insertion operator was used to hide the Representor class, so
+the absence of this is slightly asymmetrical. However, I wanted the
+parser to throw exceptions, so that the error handling mechanism could
+be uniform. This would break the pattern for extraction operators,
+which conventionally signal error by setting a failbit on the stream,
+and as a result I decided that it would be less confusing to call the
+parser's read\_sexp function explicitly than have an operator with
+unusual behaviour.
+
 
 The lexer tracks its line number and position in the input file,
 which are reported when the code encounters an error in order to aid
@@ -401,7 +398,7 @@ There are a few notable omissions from my version of `lisp': the first
 is that I only use a single numeric type, a double precision floating
 point. It would be convenient to have a dedicated integer type, as in
 most programming languages. However, floating points are good enough
-for most use cases, and having only a single numerical type simplfies
+for most use cases, and having only a single numerical type simplifies
 the parser and means the numerical functions need not handle casts
 between different numeric types. A minority of mainstream programming
 languages also make this trade off, the most prominent being
@@ -437,15 +434,16 @@ simplicity was chosen over performance: this was deemed acceptable due
 to the scope of the project, but would possibly require changing if
 the implementation was extended. The most notable of these are the
 garbage collector and the parser: both use explicitly recursive
-strategies, which lead to clear code, but mean that adverserial input\footnote{
+strategies, which lead to clear code, but mean that adversarial input\footnote{
 For example, a very long file consisting of nothing but open brackets.
 }
 could cause the program to overflow the stack and crash. This could 
 be avoided by re-writing the parser class to use a heap allocated buffer
-and avoid explicit recursion. In practice this is unlikely to cause any
-problems for reasonable input, so I decided to stick to the simpler version.
-Due to the class design, changning the parsing strategy could be done without 
-modifying the rest of the code.
+and avoid explicit recursion. Outside this project, the quickest way to
+do this would probably be to replace the hand-written parser class with
+a wrapper around an automatically generated parser made using tools like
+lex and yacc. The class design ought to make it relatively easy to do this
+with minimal changes to the rest of the code.
 
 Overall, however, I feel that this project is a successful
 demonstration of effective use of classes and the principles behind a
