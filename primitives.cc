@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "primitives.h"
 #include <algorithm>
+#include <numeric>
 #include <typeinfo>
 
 SExp *primitive::cons(std::list<SExp *> args, Env &env) {
