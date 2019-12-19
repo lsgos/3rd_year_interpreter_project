@@ -4,6 +4,8 @@
 
 ;;This function shows an example of using the builtin filter function to do the 'heavy lifting' of a for loop
 
+;; note that the combination of the interpreter and the inefficiency of this algorithm makes this extremely slow, but you get the point.
+
 (define range 
 	(lambda (i n) 
 		(if (= i n)
